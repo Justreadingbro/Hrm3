@@ -79,7 +79,7 @@
 
         function onDataReceived(event) {
             const value = event.target.value;
-            const ecgValue = value.getInt32(0, true);
+            const ecgValue = parseInt(new TextDecoder().decode(value));
 
             rawValues.push(ecgValue);
 
