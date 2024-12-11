@@ -12,6 +12,7 @@
     <canvas id="ecgCanvas" width="400" height="200"></canvas>
 
     <script>
+        let socket;
         let rawValues = [];
         let smoothedValues = [];
         const windowSize = 50;
@@ -55,53 +56,45 @@
             }
         });
 
-        const SERVICE_UUID = 'f7d6b2de-e1ab-49f7-b8a1-d1ac9b75c10a';
-        const CHARACTERISTIC_UUID = 'd6f5458d-f522-4019-b116-36d3c9b8970e';
+        document.getElementById('connectBtn').addEventListener('click', () => {
+            socket = new WebSocket('ws://192.168.145.188:81/');
+            
+            socket.onopen = () => {
+                console.log('Connected to WebSocket');
+            };
 
-        async function connectToDevice() {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [SERVICE_UUID] }]
-                });
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService(SERVICE_UUID);
-                const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                const ecgValue = data.ecgValue;
 
-                console.log('Connected to ESP32');
+                rawValues.push(ecgValue);
 
-                characteristic.startNotifications();
-                characteristic.addEventListener('characteristicvaluechanged', onDataReceived);
+                if (rawValues.length > windowSize) {
+                    rawValues.shift();
+                }
 
-            } catch (error) {
-                console.error('Error connecting to device:', error);
-            }
-        }
+                const smoothedValue = rawValues.reduce((acc, val) => acc + val, 0) / rawValues.length;
+                smoothedValues.push(smoothedValue);
 
-        function onDataReceived(event) {
-            const value = event.target.value;
-            const ecgValue = parseInt(new TextDecoder().decode(value));
+                chart.data.labels.push(chart.data.labels.length);
+                chart.data.datasets[0].data = rawValues;
+                chart.data.datasets[1].data = smoothedValues;
 
-            rawValues.push(ecgValue);
+                if (chart.data.labels.length > windowSize) {
+                    chart.data.labels.shift();
+                }
 
-            if (rawValues.length > windowSize) {
-                rawValues.shift();
-            }
+                chart.update();
+            };
 
-            const smoothedValue = rawValues.reduce((acc, val) => acc + val, 0) / rawValues.length;
-            smoothedValues.push(smoothedValue);
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
 
-            chart.data.labels.push(chart.data.labels.length);
-            chart.data.datasets[0].data = rawValues;
-            chart.data.datasets[1].data = smoothedValues;
-
-            if (chart.data.labels.length > windowSize) {
-                chart.data.labels.shift();
-            }
-
-            chart.update();
-        }
-
-        document.getElementById('connectBtn').addEventListener('click', connectToDevice);
+            socket.onclose = () => {
+                console.log('WebSocket connection closed');
+            };
+        });
     </script>
 </body>
 </html>
