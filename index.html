@@ -12,13 +12,11 @@
     <canvas id="ecgCanvas" width="400" height="200"></canvas>
 
     <script>
-        // Variables for plotting
         let rawValues = [];
         let smoothedValues = [];
         const windowSize = 50;
         const ctx = document.getElementById('ecgCanvas').getContext('2d');
 
-        // Set up chart.js chart
         const chart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -57,11 +55,9 @@
             }
         });
 
-        // Define Bluetooth Device and Characteristic UUIDs
         const SERVICE_UUID = 'f7d6b2de-e1ab-49f7-b8a1-d1ac9b75c10a';
         const CHARACTERISTIC_UUID = 'd6f5458d-f522-4019-b116-36d3c9b8970e';
 
-        // Function to connect to the ESP32 via Bluetooth
         async function connectToDevice() {
             try {
                 const device = await navigator.bluetooth.requestDevice({
