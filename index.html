@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECG Web App</title>
+    <title>Real-Time ECG Web App</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js for plotting -->
 </head>
 <body>
@@ -12,26 +12,28 @@
     <canvas id="ecgCanvas" width="400" height="200"></canvas>
 
     <script>
-        let rawValues = [];
-        let smoothedValues = [];
-        const windowSize = 50;
-        const ctx = document.getElementById('ecgCanvas').getContext('2d');
+        // Variables for plotting
+        let rawValues = [];  // Store raw ECG data
+        let smoothedValues = [];  // Store smoothed ECG data (simple moving average)
+        const windowSize = 50;  // Window size for smoothing
+        const ctx = document.getElementById('ecgCanvas').getContext('2d');  // Get the canvas context for Chart.js
 
+        // Initialize Chart.js for plotting ECG
         const chart = new Chart(ctx, {
-            type: 'line',
+            type: 'line',  // Line chart
             data: {
-                labels: [],
+                labels: [],  // X-axis (time or sample points)
                 datasets: [
                     {
                         label: 'ECG Signal',
                         borderColor: 'blue',
-                        data: [],
+                        data: [],  // Raw ECG data
                         fill: false
                     },
                     {
                         label: 'Smoothed ECG',
                         borderColor: 'red',
-                        data: [],
+                        data: [],  // Smoothed ECG data
                         fill: false
                     }
                 ]
@@ -55,9 +57,11 @@
             }
         });
 
-        const SERVICE_UUID = 'f7d6b2de-e1ab-49f7-b8a1-d1ac9b75c10a';
-        const CHARACTERISTIC_UUID = 'd6f5458d-f522-4019-b116-36d3c9b8970e';
+        // Define Bluetooth Device and Characteristic UUIDs
+        const SERVICE_UUID = 'f7d6b2de-e1ab-49f7-b8a1-d1ac9b75c10a';  // Your ESP32 service UUID
+        const CHARACTERISTIC_UUID = 'd6f5458d-f522-4019-b116-36d3c9b8970e';  // Your ESP32 characteristic UUID
 
+        // Function to connect to the ESP32 via Bluetooth
         async function connectToDevice() {
             try {
                 const device = await navigator.bluetooth.requestDevice({
@@ -81,29 +85,30 @@
         // Function to handle the data received from the ESP32
         function onDataReceived(event) {
             const value = event.target.value;
-            const ecgValue = parseInt(new TextDecoder().decode(value));
+            const ecgValue = parseInt(new TextDecoder().decode(value));  // Decode the value from the BLE characteristic
 
             // Update the raw ECG values
             rawValues.push(ecgValue);
 
             // Apply smoothing (simple moving average)
             if (rawValues.length > windowSize) {
-                rawValues.shift();  // Remove oldest data
+                rawValues.shift();  // Remove oldest data point when exceeding window size
             }
 
-            const smoothedValue = rawValues.reduce((acc, val) => acc + val, 0) / rawValues.length;
+            const smoothedValue = rawValues.reduce((acc, val) => acc + val, 0) / rawValues.length;  // Simple moving average
             smoothedValues.push(smoothedValue);
 
             // Update the chart data
-            chart.data.labels.push(chart.data.labels.length);
-            chart.data.datasets[0].data = rawValues;
-            chart.data.datasets[1].data = smoothedValues;
+            chart.data.labels.push(chart.data.labels.length);  // Adding sample number for X-axis
+            chart.data.datasets[0].data = rawValues;  // Update raw ECG dataset
+            chart.data.datasets[1].data = smoothedValues;  // Update smoothed ECG dataset
 
+            // Keep the number of labels on the X-axis within window size
             if (chart.data.labels.length > windowSize) {
-                chart.data.labels.shift();  // Keep labels within window size
+                chart.data.labels.shift();  // Remove the oldest label
             }
 
-            chart.update();
+            chart.update();  // Redraw the chart with new data
         }
 
         // Add event listener to connect button
