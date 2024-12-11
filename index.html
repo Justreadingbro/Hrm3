@@ -2,99 +2,116 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECG Web App</title>
+    <title>ECG Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        #ecgChart {
+            width: 100%;
+            max-height: 300px;
+        }
+        #statusIndicator {
+            margin: 10px 0;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>Real-Time ECG Signal</h1>
-    <button id="connectBtn">Connect to ESP32</button>
-    <canvas id="ecgCanvas" width="400" height="200"></canvas>
+    <h1>Real-Time ECG Monitor</h1>
+    <div id="statusIndicator">Connecting...</div>
+    <div id="heartRateDisplay">Heart Rate: -- BPM</div>
+    <canvas id="ecgChart"></canvas>
 
     <script>
-        let socket;
-        let rawValues = [];
-        let smoothedValues = [];
-        const windowSize = 50;
-        const ctx = document.getElementById('ecgCanvas').getContext('2d');
-
-        const chart = new Chart(ctx, {
+        // WebSocket Configuration
+        const WEBSOCKET_URL = 'ws://192.168.145.188:81';
+        
+        // Chart Configuration
+        const ctx = document.getElementById('ecgChart').getContext('2d');
+        const ecgChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [],
-                datasets: [
-                    {
-                        label: 'ECG Signal',
-                        borderColor: 'blue',
-                        data: [],
-                        fill: false
-                    },
-                    {
-                        label: 'Smoothed ECG',
-                        borderColor: 'red',
-                        data: [],
-                        fill: false
-                    }
-                ]
+                datasets: [{
+                    label: 'ECG Signal',
+                    data: [],
+                    borderColor: 'green',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1
+                }]
             },
             options: {
                 responsive: true,
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Samples'
-                        }
-                    },
                     y: {
-                        title: {
-                            display: true,
-                            text: 'ECG Value'
-                        }
+                        beginAtZero: true
                     }
-                }
+                },
+                animation: false
             }
         });
 
-        document.getElementById('connectBtn').addEventListener('click', () => {
-            socket = new WebSocket('ws://192.168.145.188:81/');
+        // WebSocket Connection
+        const socket = new WebSocket(WEBSOCKET_URL);
+        const statusIndicator = document.getElementById('statusIndicator');
+        const heartRateDisplay = document.getElementById('heartRateDisplay');
+
+        socket.onopen = function(e) {
+            statusIndicator.textContent = 'Connected ✓';
+            statusIndicator.style.color = 'green';
+        };
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
             
-            socket.onopen = () => {
-                console.log('Connected to WebSocket');
-            };
+            // Update ECG Chart
+            updateECGChart(data.ecgValue);
+            
+            // Update Heart Rate
+            heartRateDisplay.textContent = `Heart Rate: ${data.heartRate} BPM`;
+            
+            // Update Electrode Status
+            updateElectrodeStatus(data.electrodeStatus);
+        };
 
-            socket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                const ecgValue = data.ecgValue;
+        socket.onclose = function(event) {
+            statusIndicator.textContent = 'Disconnected ✗';
+            statusIndicator.style.color = 'red';
+        };
 
-                rawValues.push(ecgValue);
+        function updateECGChart(value) {
+            const chart = ecgChart;
+            
+            // Add new data point
+            chart.data.labels.push('');
+            chart.data.datasets[0].data.push(value);
+            
+            // Keep only last 100 points
+            if (chart.data.labels.length > 100) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            
+            chart.update();
+        }
 
-                if (rawValues.length > windowSize) {
-                    rawValues.shift();
-                }
-
-                const smoothedValue = rawValues.reduce((acc, val) => acc + val, 0) / rawValues.length;
-                smoothedValues.push(smoothedValue);
-
-                chart.data.labels.push(chart.data.labels.length);
-                chart.data.datasets[0].data = rawValues;
-                chart.data.datasets[1].data = smoothedValues;
-
-                if (chart.data.labels.length > windowSize) {
-                    chart.data.labels.shift();
-                }
-
-                chart.update();
-            };
-
-            socket.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
-
-            socket.onclose = () => {
-                console.log('WebSocket connection closed');
-            };
-        });
+        function updateElectrodeStatus(connected) {
+            const statusIndicator = document.getElementById('statusIndicator');
+            if (connected) {
+                statusIndicator.textContent = 'Electrodes Connected ✓';
+                statusIndicator.style.color = 'green';
+            } else {
+                statusIndicator.textContent = 'Electrodes Disconnected ✗';
+                statusIndicator.style.color = 'red';
+            }
+        }
     </script>
 </body>
 </html>
