@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ECG Web App</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js for plotting -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <h1>Real-Time ECG Signal</h1>
@@ -12,13 +12,11 @@
     <canvas id="ecgCanvas" width="400" height="200"></canvas>
 
     <script>
-        // Variables for plotting
         let rawValues = [];
         let smoothedValues = [];
         const windowSize = 50;
         const ctx = document.getElementById('ecgCanvas').getContext('2d');
 
-        // Set up chart.js chart
         const chart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -57,11 +55,9 @@
             }
         });
 
-        // Define Bluetooth Device and Characteristic UUIDs
         const SERVICE_UUID = 'f7d6b2de-e1ab-49f7-b8a1-d1ac9b75c10a';
         const CHARACTERISTIC_UUID = 'd6f5458d-f522-4019-b116-36d3c9b8970e';
 
-        // Function to connect to the ESP32 via Bluetooth
         async function connectToDevice() {
             try {
                 const device = await navigator.bluetooth.requestDevice({
@@ -73,7 +69,6 @@
 
                 console.log('Connected to ESP32');
 
-                // Listen for notifications from the ESP32
                 characteristic.startNotifications();
                 characteristic.addEventListener('characteristicvaluechanged', onDataReceived);
 
@@ -82,37 +77,30 @@
             }
         }
 
-        // Function to handle the data received from the ESP32
         function onDataReceived(event) {
             const value = event.target.value;
-            const ecgValue = new DataView(value.buffer).getUint32(0, true);
+            const ecgValue = value.getInt32(0, true);
 
-            console.log('ECG Value:', ecgValue); // Debugging line
-
-            // Update the raw ECG values
             rawValues.push(ecgValue);
 
-            // Apply smoothing (simple moving average)
             if (rawValues.length > windowSize) {
-                rawValues.shift();  // Remove oldest data
+                rawValues.shift();
             }
 
             const smoothedValue = rawValues.reduce((acc, val) => acc + val, 0) / rawValues.length;
             smoothedValues.push(smoothedValue);
 
-            // Update the chart data
             chart.data.labels.push(chart.data.labels.length);
             chart.data.datasets[0].data = rawValues;
             chart.data.datasets[1].data = smoothedValues;
 
             if (chart.data.labels.length > windowSize) {
-                chart.data.labels.shift();  // Keep labels within window size
+                chart.data.labels.shift();
             }
 
             chart.update();
         }
 
-        // Add event listener to connect button
         document.getElementById('connectBtn').addEventListener('click', connectToDevice);
     </script>
 </body>
