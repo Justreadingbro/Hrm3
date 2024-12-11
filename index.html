@@ -20,20 +20,30 @@
             margin: 10px 0;
             font-weight: bold;
         }
+        #connectionForm {
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
     <h1>Real-Time ECG Monitor</h1>
-    <div id="statusIndicator">Connecting...</div>
+    
+    <div id="connectionForm">
+        <input type="text" id="ipInput" placeholder="Enter ESP32 IP Address">
+        <button onclick="connectWebSocket()">Connect</button>
+    </div>
+
+    <div id="statusIndicator">Not Connected</div>
     <div id="heartRateDisplay">Heart Rate: -- BPM</div>
     <canvas id="ecgChart"></canvas>
 
     <script>
-        // WebSocket Configuration
-        const WEBSOCKET_URL = 'ws://192.168.145.188:81';
-        
-        // Chart Configuration
+        let socket = null;
         const ctx = document.getElementById('ecgChart').getContext('2d');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const heartRateDisplay = document.getElementById('heartRateDisplay');
+        const ipInput = document.getElementById('ipInput');
+
         const ecgChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -58,33 +68,53 @@
             }
         });
 
-        // WebSocket Connection
-        const socket = new WebSocket(WEBSOCKET_URL);
-        const statusIndicator = document.getElementById('statusIndicator');
-        const heartRateDisplay = document.getElementById('heartRateDisplay');
+        function connectWebSocket() {
+            const ip = ipInput.value.trim();
+            if (!ip) {
+                alert('Please enter an IP address');
+                return;
+            }
 
-        socket.onopen = function(e) {
-            statusIndicator.textContent = 'Connected ✓';
-            statusIndicator.style.color = 'green';
-        };
+            // Close existing connection if any
+            if (socket) {
+                socket.close();
+            }
 
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            
-            // Update ECG Chart
-            updateECGChart(data.ecgValue);
-            
-            // Update Heart Rate
-            heartRateDisplay.textContent = `Heart Rate: ${data.heartRate} BPM`;
-            
-            // Update Electrode Status
-            updateElectrodeStatus(data.electrodeStatus);
-        };
+            // Attempt to connect
+            try {
+                socket = new WebSocket(`ws://${ip}:81`);
 
-        socket.onclose = function(event) {
-            statusIndicator.textContent = 'Disconnected ✗';
-            statusIndicator.style.color = 'red';
-        };
+                socket.onopen = function(e) {
+                    statusIndicator.textContent = 'Connected ✓';
+                    statusIndicator.style.color = 'green';
+                };
+
+                socket.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    
+                    // Update ECG Chart
+                    updateECGChart(data.ecgValue);
+                    
+                    // Update Heart Rate
+                    heartRateDisplay.textContent = `Heart Rate: ${data.heartRate} BPM`;
+                    
+                    // Update Electrode Status
+                    updateElectrodeStatus(data.electrodeStatus);
+                };
+
+                socket.onclose = function(event) {
+                    statusIndicator.textContent = 'Disconnected ✗';
+                    statusIndicator.style.color = 'red';
+                };
+
+                socket.onerror = function(error) {
+                    statusIndicator.textContent = 'Connection Error ✗';
+                    statusIndicator.style.color = 'red';
+                };
+            } catch (error) {
+                alert('Failed to connect: ' + error.message);
+            }
+        }
 
         function updateECGChart(value) {
             const chart = ecgChart;
@@ -103,7 +133,6 @@
         }
 
         function updateElectrodeStatus(connected) {
-            const statusIndicator = document.getElementById('statusIndicator');
             if (connected) {
                 statusIndicator.textContent = 'Electrodes Connected ✓';
                 statusIndicator.style.color = 'green';
