@@ -28,10 +28,11 @@
     <div id="statusIndicator">Not Connected</div>
     <div id="heartRateDisplay">Heart Rate: -- BPM</div>
     <canvas id="ecgChart"></canvas>
+    <div id="data"></div>
 
     <script>
         const ip = "192.168.154.188";
-        const socket = new WebSocket(`ws://${ip}:81`);
+        const socket = new WebSocket(`wss://${ip}:81/`);
 
         let ecgChart;
         let heartRateDisplay;
@@ -72,7 +73,7 @@
             
             // Update ECG Chart
             ecgChart.data.labels.push('');
-            ecgChart.data.datasets[0].data.push(data.ecgValue);
+            ecgChart.data.datasets[0].data.push(data.analogValue);
             
             // Keep only last 100 points
             if (ecgChart.data.labels.length > 100) {
@@ -87,26 +88,33 @@
             
             // Update Electrode Status
             if (data.electrodeStatus) {
-                statusIndicator.textContent = 'Electrodes Connected ';
+                statusIndicator.textContent = 'Electrodes Connected';
                 statusIndicator.style.color = 'green';
             } else {
-                statusIndicator.textContent = 'Electrodes Disconnected ';
+                statusIndicator.textContent = 'Electrodes Disconnected';
                 statusIndicator.style.color = 'red';
             }
+
+            // Update Data Display
+            document.getElementById('data').innerHTML = `
+                Analog Value: ${data.analogValue}<br>
+                LO+ Value: ${data.loPlus}<br>
+                LO- Value: ${data.loMinus}
+            `;
         };
 
         socket.onopen = function(event) {
-            statusIndicator.textContent = 'Connected ';
+            statusIndicator.textContent = 'Connected';
             statusIndicator.style.color = 'green';
         };
 
         socket.onclose = function(event) {
-            statusIndicator.textContent = 'Disconnected ';
+            statusIndicator.textContent = 'Disconnected';
             statusIndicator.style.color = 'red';
         };
 
         socket.onerror = function(event) {
-            statusIndicator.textContent = 'Connection Error ';
+            statusIndicator.textContent = 'Connection Error';
             statusIndicator.style.color = 'red';
         };
     </script>
