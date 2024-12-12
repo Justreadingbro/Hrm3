@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECG Data Display with Geolocation</title>
+  <title>ECG Data Display with Geolocation and Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -40,10 +41,16 @@
       font-size: 1.2em;
       color: #333;
     }
+    #map {
+      width: 100%;
+      height: 400px;
+      margin-top: 20px;
+      border: 1px solid #ddd;
+    }
   </style>
 </head>
 <body>
-  <h1 class="title">ECG Data Display with Geolocation</h1>
+  <h1 class="title">ECG Data Display with Geolocation and Map</h1>
   <button id="connectBtn" class="button">Connect to ECG Device</button>
   <div id="status"></div>
   <div class="data">
@@ -52,7 +59,9 @@
   </div>
   <canvas id="ecgCanvas" width="800" height="200"></canvas>
   <div class="location" id="location"></div>
+  <div id="map"></div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     let device;
     let characteristic;
@@ -64,35 +73,28 @@
     let ctx = ecgCanvas.getContext('2d');
     let ecgData = [];
     let locationElement = document.getElementById('location');
+    let map;
+    let marker;
 
     connectBtn.addEventListener('click', connectDevice);
 
     async function connectDevice() {
       try {
-        // Request device with the ECG service
         const device = await navigator.bluetooth.requestDevice({
           filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]
         });
 
         statusElement.innerHTML = 'Connecting...';
 
-        // Connect to the device
         const server = await device.gatt.connect();
-
-        // Get the ECG Service
         const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
-
-        // Get the Heart Rate Measurement Characteristic
         characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
 
-        // Start receiving notifications from the characteristic
         characteristic.startNotifications();
         characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
 
         statusElement.innerHTML = 'Connected!';
-
-        connectBtn.disabled = true; // Disable the button after successful connection
-
+        connectBtn.disabled = true;
       } catch (error) {
         statusElement.innerHTML = 'Error: ' + error;
       }
@@ -103,35 +105,29 @@
       const ecgValue = value.getUint8(0); // ECG value from the first byte
       const heartRate = value.getUint8(2); // Heart rate value from the 3rd byte
 
-      // Update the display with the new data
       ecgValueElement.textContent = ecgValue;
       heartRateElement.textContent = heartRate.toFixed(2);
 
-      // Check if ECG value exceeds 200 and fetch location
       if (ecgValue > 200) {
         fetchGeolocation();
       }
 
-      // Update ECG graph
       updateECGGraph(ecgValue);
     }
 
     function updateECGGraph(ecgValue) {
-      // Shift old values and add new one
       ecgData.push(ecgValue);
       if (ecgData.length > ecgCanvas.width) {
-        ecgData.shift(); // Remove the first value when the array is too long
+        ecgData.shift();
       }
 
-      // Clear the canvas and redraw the ECG curve
       ctx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
-
       ctx.beginPath();
       ctx.moveTo(0, ecgCanvas.height / 2);
 
       ecgData.forEach((value, index) => {
         let x = index;
-        let y = ecgCanvas.height / 2 - value; // Center the waveform
+        let y = ecgCanvas.height / 2 - value;
         ctx.lineTo(x, y);
       });
 
@@ -145,15 +141,33 @@
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
             locationElement.innerHTML = `<strong>Location:</strong> Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`;
-            console.log(`Location fetched: Latitude ${latitude}, Longitude ${longitude}`);
+            updateMap(latitude, longitude);
           },
           (error) => {
             locationElement.innerHTML = `<strong>Error fetching location:</strong> ${error.message}`;
-            console.error('Error fetching location:', error);
           }
         );
       } else {
         locationElement.innerHTML = `<strong>Error:</strong> Geolocation is not supported by your browser.`;
+      }
+    }
+
+    function updateMap(lat, lng) {
+      if (!map) {
+        // Initialize the map
+        map = L.map('map').setView([lat, lng], 15);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Add a marker
+        marker = L.marker([lat, lng]).addTo(map);
+      } else {
+        // Update the marker position
+        map.setView([lat, lng], 15);
+        marker.setLatLng([lat, lng]);
       }
     }
   </script>
