@@ -24,8 +24,9 @@
         let server;
         let service;
         let characteristic;
-        let previousTime = null;
+        let previousRPeakTime = null;
         let rrIntervals = [];
+        const rPeakThreshold = 200; // Threshold to detect R peaks, adjust as needed
 
         // Chart.js setup
         const ctx = document.getElementById('ecgChart').getContext('2d');
@@ -87,21 +88,22 @@
             ecgChart.data.datasets[0].data.push({ x: currentTime, y: ecgValue });
             ecgChart.update();
 
-            // Calculate heart rate from RR intervals
-            if (previousTime) {
-                const rrInterval = currentTime - previousTime;
-                rrIntervals.push(rrInterval);
+            // Detect R peak
+            if (ecgValue > rPeakThreshold) {
+                if (previousRPeakTime) {
+                    const rrInterval = currentTime - previousRPeakTime;
+                    rrIntervals.push(rrInterval);
 
-                if (rrIntervals.length > 10) { // Use the last 10 intervals to calculate the average
-                    rrIntervals.shift();
+                    if (rrIntervals.length > 10) { // Use the last 10 intervals to calculate the average
+                        rrIntervals.shift();
+                    }
+
+                    const averageRrInterval = rrIntervals.reduce((a, b) => a + b) / rrIntervals.length;
+                    const heartRate = Math.round(60000 / averageRrInterval); // Convert ms interval to BPM
+                    document.getElementById('heartRate').innerText = heartRate;
                 }
-
-                const averageRrInterval = rrIntervals.reduce((a, b) => a + b) / rrIntervals.length;
-                const heartRate = Math.round(60000 / averageRrInterval); // Convert ms interval to BPM
-                document.getElementById('heartRate').innerText = heartRate;
+                previousRPeakTime = currentTime;
             }
-
-            previousTime = currentTime;
         }
 
         // Set up the button click event to trigger Bluetooth connection
