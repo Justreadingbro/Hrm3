@@ -4,10 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ECG Data</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        canvas {
+            max-width: 100%;
+            max-height: 400px;
+        }
+    </style>
 </head>
 <body>
     <h1>ECG Data</h1>
-    <div id="ecgData">Waiting for ECG Data...</div>
+    <canvas id="ecgChart"></canvas>
     <button id="connectButton">Connect to ECG</button>
     <script>
       let device;
@@ -15,7 +22,33 @@
       let service;
       let characteristic;
 
-      // Request Bluetooth device with heart rate service
+      // Chart.js setup
+      const ctx = document.getElementById('ecgChart').getContext('2d');
+      const ecgChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+              labels: [],
+              datasets: [{
+                  label: 'ECG Data',
+                  data: [],
+                  borderColor: 'rgb(75, 192, 192)',
+                  fill: false,
+              }]
+          },
+          options: {
+              scales: {
+                  x: {
+                      type: 'linear',
+                      position: 'bottom'
+                  }
+              },
+              animation: {
+                  duration: 0 // Disable animation to get real-time updates
+              }
+          }
+      });
+
+      // Request Bluetooth device with specific services
       async function connectBluetooth() {
         try {
           device = await navigator.bluetooth.requestDevice({
@@ -34,11 +67,20 @@
         }
       }
 
-      // Handle incoming ECG data from Bluetooth
+      // Handle incoming data from Bluetooth device
       function handleData(event) {
-        // The ECG data is being sent as a uint8 value (ECG value)
-        const ecgValue = event.target.value.getUint8(0);
-        document.getElementById('ecgData').innerText = 'ECG: ' + ecgValue;
+        const ecgValue = event.target.value.getUint8(0); // ECG data is received as uint8
+        const currentTime = new Date().getTime(); // Get current time
+
+        // Update the chart with new data
+        if (ecgChart.data.labels.length > 100) {
+          ecgChart.data.labels.shift();
+          ecgChart.data.datasets[0].data.shift();
+        }
+
+        ecgChart.data.labels.push(currentTime);
+        ecgChart.data.datasets[0].data.push({ x: currentTime, y: ecgValue });
+        ecgChart.update();
       }
 
       // Set up the button click event to trigger Bluetooth connection
