@@ -1,158 +1,112 @@
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
-#include <BLE2902.h>
-
-#define ECG_PIN A0 // ECG sensor input pin (AD8232)
-
-// BLE characteristic to send ECG data
-BLECharacteristic *pCharacteristic;
-bool deviceConnected = false;
-unsigned long previousMillis = 0;
-const unsigned long samplingInterval = 10; // 10 ms for 100 Hz sampling rate
-
-// Variables for heart rate calculation
-unsigned long lastRPeakTime = 0;
-float heartRate = 0;
-unsigned long rPeakInterval = 0; // Time between successive R-peaks in ms
-
-// Filter-related variables (Butterworth filter coefficients)
-#define SAMPLE_RATE 100 // 100 Hz sample rate
-#define CUTOFF_FREQ 1   // 1 Hz cutoff frequency (for ECG)
-float a0 = 0.2929, a1 = 0.5858, a2 = 0.2929; // Butterworth filter coefficients
-float prevInput[2] = {0.0, 0.0};
-float prevOutput[2] = {0.0, 0.0};
-
-int butterworthFilter(int input) {
-    float output = a0 * input + a1 * prevInput[0] + a2 * prevInput[1] - 0.0 * prevOutput[0] - 0.1716 * prevOutput[1];
-
-    // Shift inputs and outputs for next cycle
-    prevInput[1] = prevInput[0];
-    prevInput[0] = input;
-    prevOutput[1] = prevOutput[0];
-    prevOutput[0] = output;
-
-    return (int)output;
-}
-
-// Heart rate smoothing variables (averaging over 5 measurements)
-#define HEART_RATE_SMOOTHING_INTERVAL 5
-float heartRateValues[HEART_RATE_SMOOTHING_INTERVAL];
-int heartRateIndex = 0;
-
-void smoothHeartRate(float newHeartRate) {
-    heartRateValues[heartRateIndex] = newHeartRate;
-    heartRateIndex = (heartRateIndex + 1) % HEART_RATE_SMOOTHING_INTERVAL;
-
-    // Calculate average heart rate
-    float sum = 0;
-    for (int i = 0; i < HEART_RATE_SMOOTHING_INTERVAL; i++) {
-        sum += heartRateValues[i];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECG Monitor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f3f3f3;
+      text-align: center;
+      padding: 20px;
     }
-    heartRate = sum / HEART_RATE_SMOOTHING_INTERVAL;
-}
-
-// BLE server callback class
-class MyServerCallbacks : public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-        deviceConnected = true;
-        Serial.println("Client connected");
-    };
-
-    void onDisconnect(BLEServer* pServer) {
-        deviceConnected = false;
-        Serial.println("Client disconnected");
-        BLEDevice::startAdvertising();
+    .title {
+      font-size: 2em;
+      margin-bottom: 20px;
     }
-};
+    .data {
+      font-size: 1.5em;
+      margin: 10px;
+    }
+    .button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    .button:disabled {
+      background-color: #ccc;
+    }
+    canvas {
+      margin-top: 20px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="title">ECG Monitor</div>
 
-// R-Peak detection (Pan-Tompkins style)
-void detectRPeak(int ecgValue) {
-    static int prevECGValue = 0;
-    static int prevECGValue2 = 0;
-    static int derivative = 0;
-    static int threshold = 1000;
+  <button class="button" id="connectButton">Connect to ECG Device</button>
 
-    // Calculate the derivative (difference between consecutive ECG samples)
-    derivative = ecgValue - prevECGValue;
+  <div class="data" id="heartRate">Heart Rate: -- BPM</div>
+  <div class="data" id="ecgValue">ECG: --</div>
 
-    // Check if this is an R-peak
-    if (derivative > threshold && prevECGValue > 0) {
-        unsigned long currentMillis = millis();
-        rPeakInterval = currentMillis - lastRPeakTime;
-        lastRPeakTime = currentMillis;
+  <canvas id="ecgCanvas" width="600" height="200"></canvas>
 
-        // Calculate heart rate in BPM (beats per minute)
-        if (rPeakInterval > 0) {
-            float newHeartRate = 60000.0 / rPeakInterval;
-            smoothHeartRate(newHeartRate); // Smooth heart rate over several R-peaks
+  <script src="https://cdn.jsdelivr.net/npm/@webbluetooth/core@1.0.3"></script>
+  <script>
+    let heartRateElement = document.getElementById('heartRate');
+    let ecgValueElement = document.getElementById('ecgValue');
+    let connectButton = document.getElementById('connectButton');
+    let ecgCanvas = document.getElementById('ecgCanvas');
+    let ecgCtx = ecgCanvas.getContext('2d');
+    let isConnected = false;
+    let ecgData = [];
+
+    // Button click to connect to the ESP32 device via BLE
+    connectButton.addEventListener('click', async () => {
+      if (!isConnected) {
+        try {
+          const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }] // Heart Rate Service
+          });
+
+          const server = await device.gatt.connect();
+          const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
+          const characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
+
+          characteristic.startNotifications();
+          characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+
+          connectButton.disabled = true;
+          connectButton.textContent = "Connected";
+
+          isConnected = true;
+        } catch (error) {
+          console.error("Connection failed", error);
+          alert("Failed to connect to ECG device. Please try again.");
         }
+      }
+    });
+
+    // Function to handle incoming BLE notifications
+    function handleNotifications(event) {
+      const value = event.target.value;
+      const ecgValue = value.getUint16(0, true);
+      const heartRate = value.getUint8(2);
+
+      // Update ECG and Heart Rate on the webpage
+      ecgValueElement.textContent = `ECG: ${ecgValue}`;
+      heartRateElement.textContent = `Heart Rate: ${heartRate} BPM`;
+
+      // Draw ECG data on canvas
+      ecgData.push(ecgValue);
+      if (ecgData.length > 600) {
+        ecgData.shift(); // Keep the data limited to the canvas width
+      }
+
+      ecgCtx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height); // Clear previous canvas
+      ecgCtx.beginPath();
+      ecgCtx.moveTo(0, 100 - (ecgData[0] / 1024) * 100);
+      for (let i = 1; i < ecgData.length; i++) {
+        ecgCtx.lineTo(i, 100 - (ecgData[i] / 1024) * 100);
+      }
+      ecgCtx.stroke();
     }
-
-    prevECGValue2 = prevECGValue;
-    prevECGValue = ecgValue;
-}
-
-void setup() {
-    Serial.begin(115200);
-    pinMode(ECG_PIN, INPUT);
-
-    // Initialize BLE
-    BLEDevice::init("ECG_Device");
-    BLEServer *pServer = BLEDevice::createServer();
-    pServer->setCallbacks(new MyServerCallbacks());
-
-    // Create Heart Rate Service
-    BLEService *pService = pServer->createService(BLEUUID("0000180d-0000-1000-8000-00805f9b34fb"));
-
-    // Create Heart Rate Measurement Characteristic
-    pCharacteristic = pService->createCharacteristic(
-                                        BLEUUID("00002a37-0000-1000-8000-00805f9b34fb"),
-                                        BLECharacteristic::PROPERTY_READ |
-                                        BLECharacteristic::PROPERTY_NOTIFY);
-
-    pCharacteristic->addDescriptor(new BLE2902());
-
-    // Start the service
-    pService->start();
-
-    // Start advertising
-    BLEAdvertising *pAdvertising = pServer->getAdvertising();
-    pAdvertising->addServiceUUID(BLEUUID("0000180d-0000-1000-8000-00805f9b34fb"));
-    pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06);
-    pAdvertising->setMinPreferred(0x12);
-    BLEDevice::startAdvertising();
-    Serial.println("Waiting for a client to connect...");
-}
-
-void loop() {
-    if (deviceConnected) {
-        unsigned long currentMillis = millis();
-        if (currentMillis - previousMillis >= samplingInterval) {
-            previousMillis = currentMillis;
-
-            int rawECG = analogRead(ECG_PIN); // Read raw ECG value
-
-            // Apply Butterworth filter to clean ECG data
-            int filteredECG = butterworthFilter(rawECG);
-
-            // Detect R-peak and calculate heart rate
-            detectRPeak(filteredECG);
-
-            // Send ECG data and heart rate to the client
-            uint8_t data[5];
-            data[0] = filteredECG & 0xFF; // Lower byte of ECG value
-            data[1] = (filteredECG >> 8) & 0xFF; // Higher byte of ECG value
-            data[2] = (heartRate > 0) ? (int)heartRate : 0; // Heart rate value
-            data[3] = rPeakInterval & 0xFF; // Lower byte of R-peak interval
-            data[4] = (rPeakInterval >> 8) & 0xFF; // Higher byte of R-peak interval
-
-            pCharacteristic->setValue(data, 5);
-            pCharacteristic->notify();
-
-            // Print filtered ECG and heart rate data
-            Serial.printf("ECG: %d, Heart Rate: %.2f BPM\n", filteredECG, heartRate);
-        }
-    }
-}
+  </script>
+</body>
+</html>
