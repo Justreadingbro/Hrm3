@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ECG and Heart Rate Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -15,70 +16,116 @@
             margin-top: 20px;
         }
         canvas {
-            border: 1px solid #ddd;
-            display: block;
+            max-width: 100%;
             margin: 20px auto;
         }
         button {
             padding: 10px 20px;
             font-size: 1em;
             cursor: pointer;
+            margin: 5px;
         }
         button:disabled {
             background-color: #ccc;
             cursor: not-allowed;
+        }
+        .settings {
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <h1>ECG and Heart Rate Viewer</h1>
     <button id="connectBtn">Scan and Connect to ECG Device</button>
+    <button id="exportBtn" disabled>Export ECG Data</button>
     <div class="output">
         <p><strong>Heart Rate (BPM):</strong> <span id="heartRate">N/A</span></p>
         <p><strong>ECG Value:</strong> <span id="ecgValue">N/A</span></p>
         <p><strong>R-peak Interval (ms):</strong> <span id="rPeakInterval">N/A</span></p>
     </div>
-    <canvas id="ecgCanvas" width="600" height="300"></canvas>
+    <canvas id="ecgChart"></canvas>
+    <div class="settings">
+        <label for="samplingRate">Sampling Rate (ms): </label>
+        <input type="number" id="samplingRate" value="10" min="1" step="1"> ms
+        <br>
+        <label for="threshold">Threshold: </label>
+        <input type="number" id="threshold" value="300" min="1" step="1">
+    </div>
 
     <script>
         const connectBtn = document.getElementById('connectBtn');
+        const exportBtn = document.getElementById('exportBtn');
         const heartRateDisplay = document.getElementById('heartRate');
         const ecgValueDisplay = document.getElementById('ecgValue');
         const rPeakIntervalDisplay = document.getElementById('rPeakInterval');
-        const ecgCanvas = document.getElementById('ecgCanvas');
-        const ctx = ecgCanvas.getContext('2d');
+        const samplingRateInput = document.getElementById('samplingRate');
+        const thresholdInput = document.getElementById('threshold');
 
-        // ECG data buffer for visualization
-        const ecgData = [];
-        const maxDataPoints = 100; // Max number of data points to display
+        let ecgData = []; // Data buffer for ECG
+        let timestamps = []; // Timestamps for data points
+
+        // Initialize Chart.js
+        const ctx = document.getElementById('ecgChart').getContext('2d');
+        const ecgChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'ECG Signal',
+                    data: [],
+                    borderColor: '#007BFF',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 0,
+                }],
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { display: true, title: { display: true, text: 'Time (ms)' } },
+                    y: { display: true, title: { display: true, text: 'ECG Value' } },
+                },
+            },
+        });
 
         connectBtn.addEventListener('click', connectToDevice);
+        exportBtn.addEventListener('click', exportECGData);
 
         async function connectToDevice() {
             try {
                 // Request Bluetooth device with a UI pop-up
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }] // Heart Rate Service UUID
+                    filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }],
                 });
 
                 // Connect to the selected device
                 const server = await device.gatt.connect();
 
+                // Handle device disconnection
+                device.addEventListener('gattserverdisconnected', handleDisconnect);
+
                 // Get the Heart Rate Service and Measurement Characteristic
-                const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb'); // Heart Rate Service UUID
-                const characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb'); // Heart Rate Measurement Characteristic UUID
+                const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
+                const characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
 
                 // Start receiving notifications
                 await characteristic.startNotifications();
                 characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
 
                 connectBtn.disabled = true;
+                exportBtn.disabled = false;
                 console.log('Connected to ECG Device');
                 alert('Connected to ECG Device');
             } catch (error) {
                 console.error('Error during Bluetooth connection:', error);
                 alert('Failed to connect to ECG device. Please try again.');
             }
+        }
+
+        function handleDisconnect() {
+            alert('Device disconnected. Please reconnect.');
+            connectBtn.disabled = false;
+            exportBtn.disabled = true;
         }
 
         function handleCharacteristicValueChanged(event) {
@@ -91,33 +138,39 @@
 
             // Update UI
             ecgValueDisplay.textContent = ecg;
-            heartRateDisplay.textContent = heartRate > 0 ? heartRate : "N/A";
+            heartRateDisplay.textContent = heartRate > 0 ? heartRate : 'N/A';
             rPeakIntervalDisplay.textContent = rPeakInterval;
 
-            // Update ECG graph
-            updateECGGraph(ecg);
-        }
-
-        function updateECGGraph(ecg) {
-            if (ecgData.length >= maxDataPoints) {
-                ecgData.shift(); // Remove the oldest data point if buffer is full
-            }
+            // Add data to buffers
+            const currentTime = Date.now();
+            if (timestamps.length > 100) timestamps.shift();
+            if (ecgData.length > 100) ecgData.shift();
+            timestamps.push(currentTime);
             ecgData.push(ecg);
 
-            // Clear the canvas
-            ctx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
+            // Update chart
+            ecgChart.data.labels = timestamps;
+            ecgChart.data.datasets[0].data = ecgData;
+            ecgChart.update();
+        }
 
-            // Draw the ECG data as a line graph
-            ctx.beginPath();
-            ctx.moveTo(0, ecgCanvas.height / 2);
-            for (let i = 0; i < ecgData.length; i++) {
-                const x = (i / maxDataPoints) * ecgCanvas.width;
-                const y = (ecgCanvas.height / 2) - (ecgData[i] / 1024 * ecgCanvas.height / 2); // Normalize ECG value
-                ctx.lineTo(x, y);
-            }
-            ctx.strokeStyle = '#007BFF';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+        function exportECGData() {
+            const csvContent = [
+                ['Timestamp (ms)', 'ECG Value'],
+                ...timestamps.map((time, i) => [time, ecgData[i]]),
+            ]
+                .map((row) => row.join(','))
+                .join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ecg_data.csv';
+            a.click();
+
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
