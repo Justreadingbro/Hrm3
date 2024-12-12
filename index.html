@@ -3,117 +3,129 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECG Monitor</title>
+  <title>ECG Data Display</title>
   <style>
     body {
-  font-family: Arial, sans-serif;
-  background-color: #f3f3f3;
-  text-align: center;
-  padding: 20px;
-}
-
-.title {
-  font-size: 2em;
-  margin-bottom: 20px;
-}
-
-.data {
-  font-size: 1.5em;
-  margin: 10px;
-}
-
-.button {
-  padding: 10px 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1em;
-}
-
-.button:disabled {
-  background-color: #ccc;
-}
-
-canvas {
-  margin-top: 20px;
-  border: 1px solid #ddd;
-  width: 90%; /* Make the graph take up 90% of the screen width */
-  height: 600px; /* Set a fixed height for the graph */
-}
+      font-family: Arial, sans-serif;
+      background-color: #f3f3f3;
+      text-align: center;
+      padding: 20px;
+    }
+    .title {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+    .data {
+      font-size: 1.5em;
+      margin: 10px;
+    }
+    .button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    .button:disabled {
+      background-color: #ccc;
+    }
+    canvas {
+      margin-top: 20px;
+      border: 1px solid #ddd;
+    }
   </style>
 </head>
 <body>
-  <div class="title">ECG Monitor</div>
+  <h1 class="title">ECG Data Display</h1>
+  <button id="connectBtn" class="button">Connect to ECG Device</button>
+  <div id="status"></div>
+  <div class="data">
+    <p><strong>ECG Value:</strong> <span id="ecgValue">0</span></p>
+    <p><strong>Heart Rate:</strong> <span id="heartRate">0.00</span> BPM</p>
+  </div>
+  <canvas id="ecgCanvas" width="800" height="200"></canvas>
 
-  <button class="button" id="connectButton">Connect to ECG Device</button>
+  <script>
+    let device;
+    let characteristic;
+    let ecgValueElement = document.getElementById('ecgValue');
+    let heartRateElement = document.getElementById('heartRate');
+    let connectBtn = document.getElementById('connectBtn');
+    let statusElement = document.getElementById('status');
+    let ecgCanvas = document.getElementById('ecgCanvas');
+    let ctx = ecgCanvas.getContext('2d');
+    let ecgData = [];
+    let heartRate = 0;
 
-  <div class="data" id="heartRate">Heart Rate: -- BPM</div>
-  <div class="data" id="ecgValue">ECG: --</div>
+    connectBtn.addEventListener('click', connectDevice);
 
-  <canvas id="ecgCanvas" width="600" height="200"></canvas>
-
-  <script src="https://cdn.jsdelivr.net/npm/@webbluetooth/core@1.0.3"></script>
- <script>
-  let heartRateElement = document.getElementById('heartRate');
-  let ecgValueElement = document.getElementById('ecgValue');
-  let connectButton = document.getElementById('connectButton');
-  let ecgCanvas = document.getElementById('ecgCanvas');
-  let ecgCtx = ecgCanvas.getContext('2d');
-  let isConnected = false;
-  let ecgData = [];
-
-  // Button click to connect to the ESP32 device via BLE
-  connectButton.addEventListener('click', async () => {
-    if (!isConnected) {
+    async function connectDevice() {
       try {
+        // Request device with the ECG service
         const device = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }] // Heart Rate Service
+          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]
         });
 
+        statusElement.innerHTML = 'Connecting...';
+
+        // Connect to the device
         const server = await device.gatt.connect();
+
+        // Get the ECG Service
         const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
-        const characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
 
+        // Get the Heart Rate Measurement Characteristic
+        characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
+
+        // Start receiving notifications from the characteristic
         characteristic.startNotifications();
-        characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+        characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
 
-        connectButton.disabled = true;
-        connectButton.textContent = "Connected";
+        statusElement.innerHTML = 'Connected!';
 
-        isConnected = true;
+        connectBtn.disabled = true; // Disable the button after successful connection
+
       } catch (error) {
-        console.error("Connection failed", error);
-        alert("Failed to connect to ECG device. Please try again.");
+        statusElement.innerHTML = 'Error: ' + error;
       }
     }
-  });
 
-  // Function to handle incoming BLE notifications
-  function handleNotifications(event) {
-    const value = event.target.value;
-    const ecgValue = value.getUint16(0, true);
-    const heartRate = value.getUint8(2);
+    function handleCharacteristicValueChanged(event) {
+      const value = event.target.value;
+      const ecgValue = value.getUint8(0); // ECG value from the first byte
+      const heartRate = value.getUint8(2); // Heart rate value from the 3rd byte
 
-    // Update ECG and Heart Rate on the webpage
-    ecgValueElement.textContent = `ECG: ${ecgValue}`;
-    heartRateElement.textContent = `Heart Rate: ${heartRate} BPM`;
+      // Update the display with the new data
+      ecgValueElement.textContent = ecgValue;
+      heartRateElement.textContent = heartRate.toFixed(2);
 
-    // Draw ECG data on canvas
-    ecgData.push(ecgValue);
-    if (ecgData.length > 600) {
-      ecgData.shift(); // Keep the data limited to the canvas width
+      // Update ECG graph
+      updateECGGraph(ecgValue);
     }
 
-    ecgCtx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height); // Clear previous canvas
-    ecgCtx.beginPath();
-    ecgCtx.moveTo(0, 100 - (ecgData[0] / 1024) * 100);
-    for (let i = 1; i < ecgData.length; i++) {
-      ecgCtx.lineTo(i, 100 - (ecgData[i] / 1024) * 100);
+    function updateECGGraph(ecgValue) {
+      // Shift old values and add new one
+      ecgData.push(ecgValue);
+      if (ecgData.length > ecgCanvas.width) {
+        ecgData.shift(); // Remove the first value when the array is too long
+      }
+
+      // Clear the canvas and redraw the ECG curve
+      ctx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
+
+      ctx.beginPath();
+      ctx.moveTo(0, ecgCanvas.height / 2);
+
+      ecgData.forEach((value, index) => {
+        let x = index;
+        let y = ecgCanvas.height / 2 - value; // Center the waveform
+        ctx.lineTo(x, y);
+      });
+
+      ctx.stroke();
     }
-    ecgCtx.stroke();
-  }
-</script>
+  </script>
 </body>
 </html>
