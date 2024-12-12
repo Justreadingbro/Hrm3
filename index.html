@@ -2,121 +2,43 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ECG Monitor</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            text-align: center;
-        }
-        #ecgChart {
-            width: 100%;
-            max-height: 300px;
-        }
-        #statusIndicator {
-            margin: 10px 0;
-            font-weight: bold;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Data</title>
 </head>
 <body>
-    <h1>Real-Time ECG Monitor</h1>
-    
-    <div id="statusIndicator">Not Connected</div>
-    <div id="heartRateDisplay">Heart Rate: -- BPM</div>
-    <canvas id="ecgChart"></canvas>
-    <div id="data"></div>
-
+    <h1>ECG Data</h1>
+    <div id="ecgData">Waiting for ECG Data...</div>
     <script>
-        const ip = "192.168.154.188";
-        const socket = new WebSocket(`wss://${ip}:81/`);
+      let device;
+      let server;
+      let service;
+      let characteristic;
 
-        let ecgChart;
-        let heartRateDisplay;
-        let statusIndicator;
+      // Request Bluetooth device with specific services
+      async function connectBluetooth() {
+        try {
+          device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['heart_rate'] }]
+          });
 
-        document.addEventListener("DOMContentLoaded", function() {
-            ecgChart = document.getElementById('ecgChart').getContext('2d');
-            heartRateDisplay = document.getElementById('heartRateDisplay');
-            statusIndicator = document.getElementById('statusIndicator');
+          server = await device.gatt.connect();
+          service = await server.getPrimaryService('heart_rate');
+          characteristic = await service.getCharacteristic('heart_rate_measurement');
+          
+          characteristic.startNotifications();
+          characteristic.addEventListener('characteristicvaluechanged', handleData);
+        } catch (error) {
+          console.log('Error:', error);
+        }
+      }
 
-            ecgChart = new Chart(ecgChart, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'ECG Signal',
-                        data: [],
-                        borderColor: 'green',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    animation: false
-                }
-            });
-        });
+      // Handle incoming data from Bluetooth device
+      function handleData(event) {
+        const data = event.target.value.getUint8(0); // ECG data is received as uint8
+        document.getElementById('ecgData').innerText = 'ECG: ' + data;
+      }
 
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            
-            // Update ECG Chart
-            ecgChart.data.labels.push('');
-            ecgChart.data.datasets[0].data.push(data.analogValue);
-            
-            // Keep only last 100 points
-            if (ecgChart.data.labels.length > 100) {
-                ecgChart.data.labels.shift();
-                ecgChart.data.datasets[0].data.shift();
-            }
-            
-            ecgChart.update();
-            
-            // Update Heart Rate
-            heartRateDisplay.textContent = `Heart Rate: ${data.heartRate} BPM`;
-            
-            // Update Electrode Status
-            if (data.electrodeStatus) {
-                statusIndicator.textContent = 'Electrodes Connected';
-                statusIndicator.style.color = 'green';
-            } else {
-                statusIndicator.textContent = 'Electrodes Disconnected';
-                statusIndicator.style.color = 'red';
-            }
-
-            // Update Data Display
-            document.getElementById('data').innerHTML = `
-                Analog Value: ${data.analogValue}<br>
-                LO+ Value: ${data.loPlus}<br>
-                LO- Value: ${data.loMinus}
-            `;
-        };
-
-        socket.onopen = function(event) {
-            statusIndicator.textContent = 'Connected';
-            statusIndicator.style.color = 'green';
-        };
-
-        socket.onclose = function(event) {
-            statusIndicator.textContent = 'Disconnected';
-            statusIndicator.style.color = 'red';
-        };
-
-        socket.onerror = function(event) {
-            statusIndicator.textContent = 'Connection Error';
-            statusIndicator.style.color = 'red';
-        };
+      connectBluetooth();
     </script>
 </body>
 </html>
