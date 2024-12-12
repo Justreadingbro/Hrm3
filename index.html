@@ -17,11 +17,11 @@
     <canvas id="ecgChart"></canvas>
     <div>
         <h2>Heart Rate: <span id="heartRate">0</span> BPM</h2>
-        <h2>R-R Interval: <span id="rrInterval">0</span> ms</h2>
-        <h2>PR Interval: <span id="prInterval">0</span> ms</h2>
-        <h2>QRS Interval: <span id="qrsInterval">0</span> ms</h2>
-        <h2>QT Interval: <span id="qtInterval">0</span> ms</h2>
-        <h2>ST-Segment: <span id="stSegment">0</span> ms</h2>
+        <h2>P-Wave: <span id="pWave">0</span> ms</h2>
+        <h2>Q-Wave: <span id="qWave">0</span> ms</h2>
+        <h2>R-Peak: <span id="rPeak">0</span> ms</h2>
+        <h2>S-Wave: <span id="sWave">0</span> ms</h2>
+        <h2>T-Wave: <span id="tWave">0</span> ms</h2>
     </div>
     <button id="connectButton">Connect to ECG</button>
     <script>
@@ -30,13 +30,8 @@
         let service;
         let characteristic;
         let previousRPeakTime = null;
-        let rrIntervals = [];
-        let prIntervals = [];
-        let qrsIntervals = [];
-        let qtIntervals = [];
-        let stSegments = [];
-        const rPeakThreshold = 150; // Adjusted threshold for R peaks
-        const baselineOffset = 100; // Add a baseline offset to avoid touching zero
+        let rPeakThreshold = 150; // Adjusted threshold for R peaks
+        let baselineOffset = 100; // Add baseline offset to avoid zero
 
         // Chart.js setup
         const ctx = document.getElementById('ecgChart').getContext('2d');
@@ -70,7 +65,7 @@
                     }
                 },
                 animation: {
-                    duration: 0 // Disable animation to get real-time updates
+                    duration: 0 // Disable animation for real-time updates
                 }
             }
         });
@@ -106,67 +101,65 @@
 
         // Process ECG data and calculate intervals
         function processECGData(ecgValue, currentTime) {
-            // Detect R peak
+            // Placeholder logic to detect R peaks and other waves
+            let rPeakDetected = false;
+
+            // Detect R peak based on threshold
             if (ecgValue > rPeakThreshold) {
+                rPeakDetected = true;
+                const rPeakTime = currentTime;
+
                 if (previousRPeakTime) {
-                    const rrInterval = currentTime - previousRPeakTime;
-                    rrIntervals.push(rrInterval);
+                    const rrInterval = rPeakTime - previousRPeakTime;
+                    const heartRate = Math.round(60000 / rrInterval); // BPM calculation
 
-                    if (rrIntervals.length > 10) {
-                        rrIntervals.shift();
-                    }
-
-                    const averageRrInterval = rrIntervals.reduce((a, b) => a + b) / rrIntervals.length;
-                    const heartRate = Math.round(60000 / averageRrInterval);
                     document.getElementById('heartRate').innerText = heartRate;
-                    document.getElementById('rrInterval').innerText = rrInterval;
-
-                    // Update the chart with new data
-                    if (ecgChart.data.labels.length > 100) {
-                        ecgChart.data.labels.shift();
-                        ecgChart.data.datasets[0].data.shift();
-                    }
-
-                    ecgChart.data.labels.push(currentTime);
-                    ecgChart.data.datasets[0].data.push(ecgValue);
-                    ecgChart.update();
+                    document.getElementById('rPeak').innerText = rPeakTime;
                 }
                 previousRPeakTime = currentTime;
             }
 
-            // Placeholder for other intervals (PR, QRS, QT, ST)
-            // You need to implement the actual peak detection logic for P, Q, S, T waves
-            // Below is just a placeholder for updating the display
-            const prInterval = calculatePRInterval();
-            const qrsInterval = calculateQRSInterval();
-            const qtInterval = calculateQTInterval();
-            const stSegment = calculateSTSegment();
+            // Placeholder for other waves (P, Q, S, T)
+            const pWave = calculatePWave();
+            const qWave = calculateQWave();
+            const sWave = calculateSWave();
+            const tWave = calculateTWave();
 
-            document.getElementById('prInterval').innerText = prInterval;
-            document.getElementById('qrsInterval').innerText = qrsInterval;
-            document.getElementById('qtInterval').innerText = qtInterval;
-            document.getElementById('stSegment').innerText = stSegment;
+            // Update values for P, Q, S, T
+            document.getElementById('pWave').innerText = pWave;
+            document.getElementById('qWave').innerText = qWave;
+            document.getElementById('sWave').innerText = sWave;
+            document.getElementById('tWave').innerText = tWave;
+
+            // Update chart data
+            if (ecgChart.data.labels.length > 100) {
+                ecgChart.data.labels.shift();
+                ecgChart.data.datasets[0].data.shift();
+            }
+            ecgChart.data.labels.push(currentTime);
+            ecgChart.data.datasets[0].data.push(ecgValue);
+            ecgChart.update();
         }
 
-        // Placeholder functions for calculating intervals
-        function calculatePRInterval() {
-            // Implement PR interval calculation logic
-            return 0;
+        // Placeholder functions for calculating P, Q, S, T waves
+        function calculatePWave() {
+            // Logic for detecting P wave
+            return 0; // Placeholder value
         }
 
-        function calculateQRSInterval() {
-            // Implement QRS interval calculation logic
-            return 0;
+        function calculateQWave() {
+            // Logic for detecting Q wave
+            return 0; // Placeholder value
         }
 
-        function calculateQTInterval() {
-            // Implement QT interval calculation logic
-            return 0;
+        function calculateSWave() {
+            // Logic for detecting S wave
+            return 0; // Placeholder value
         }
 
-        function calculateSTSegment() {
-            // Implement ST segment calculation logic
-            return 0;
+        function calculateTWave() {
+            // Logic for detecting T wave
+            return 0; // Placeholder value
         }
 
         // Set up the button click event to trigger Bluetooth connection
