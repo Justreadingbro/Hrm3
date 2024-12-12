@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECG Data Display</title>
+  <title>ECG Data Display with Geolocation</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -35,10 +35,15 @@
       margin-top: 20px;
       border: 1px solid #ddd;
     }
+    .location {
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: #333;
+    }
   </style>
 </head>
 <body>
-  <h1 class="title">ECG Data Display</h1>
+  <h1 class="title">ECG Data Display with Geolocation</h1>
   <button id="connectBtn" class="button">Connect to ECG Device</button>
   <div id="status"></div>
   <div class="data">
@@ -46,6 +51,7 @@
     <p><strong>Heart Rate:</strong> <span id="heartRate">0.00</span> BPM</p>
   </div>
   <canvas id="ecgCanvas" width="800" height="200"></canvas>
+  <div class="location" id="location"></div>
 
   <script>
     let device;
@@ -57,7 +63,7 @@
     let ecgCanvas = document.getElementById('ecgCanvas');
     let ctx = ecgCanvas.getContext('2d');
     let ecgData = [];
-    let heartRate = 0;
+    let locationElement = document.getElementById('location');
 
     connectBtn.addEventListener('click', connectDevice);
 
@@ -101,6 +107,11 @@
       ecgValueElement.textContent = ecgValue;
       heartRateElement.textContent = heartRate.toFixed(2);
 
+      // Check if ECG value exceeds 200 and fetch location
+      if (ecgValue > 200) {
+        fetchGeolocation();
+      }
+
       // Update ECG graph
       updateECGGraph(ecgValue);
     }
@@ -125,6 +136,25 @@
       });
 
       ctx.stroke();
+    }
+
+    function fetchGeolocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            locationElement.innerHTML = `<strong>Location:</strong> Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`;
+            console.log(`Location fetched: Latitude ${latitude}, Longitude ${longitude}`);
+          },
+          (error) => {
+            locationElement.innerHTML = `<strong>Error fetching location:</strong> ${error.message}`;
+            console.error('Error fetching location:', error);
+          }
+        );
+      } else {
+        locationElement.innerHTML = `<strong>Error:</strong> Geolocation is not supported by your browser.`;
+      }
     }
   </script>
 </body>
