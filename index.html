@@ -48,65 +48,65 @@
   <canvas id="ecgCanvas" width="600" height="200"></canvas>
 
   <script src="https://cdn.jsdelivr.net/npm/@webbluetooth/core@1.0.3"></script>
-  <script>
-    let heartRateElement = document.getElementById('heartRate');
-    let ecgValueElement = document.getElementById('ecgValue');
-    let connectButton = document.getElementById('connectButton');
-    let ecgCanvas = document.getElementById('ecgCanvas');
-    let ecgCtx = ecgCanvas.getContext('2d');
-    let isConnected = false;
-    let ecgData = [];
+ <script>
+  let heartRateElement = document.getElementById('heartRate');
+  let ecgValueElement = document.getElementById('ecgValue');
+  let connectButton = document.getElementById('connectButton');
+  let ecgCanvas = document.getElementById('ecgCanvas');
+  let ecgCtx = ecgCanvas.getContext('2d');
+  let isConnected = false;
+  let ecgData = [];
 
-    // Button click to connect to the ESP32 device via BLE
-    connectButton.addEventListener('click', async () => {
-      if (!isConnected) {
-        try {
-          const device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }] // Heart Rate Service
-          });
+  // Button click to connect to the ESP32 device via BLE
+  connectButton.addEventListener('click', async () => {
+    if (!isConnected) {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }] // Heart Rate Service
+        });
 
-          const server = await device.gatt.connect();
-          const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
-          const characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
+        const characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
 
-          characteristic.startNotifications();
-          characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+        characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', handleNotifications);
 
-          connectButton.disabled = true;
-          connectButton.textContent = "Connected";
+        connectButton.disabled = true;
+        connectButton.textContent = "Connected";
 
-          isConnected = true;
-        } catch (error) {
-          console.error("Connection failed", error);
-          alert("Failed to connect to ECG device. Please try again.");
-        }
+        isConnected = true;
+      } catch (error) {
+        console.error("Connection failed", error);
+        alert("Failed to connect to ECG device. Please try again.");
       }
-    });
-
-    // Function to handle incoming BLE notifications
-    function handleNotifications(event) {
-      const value = event.target.value;
-      const ecgValue = value.getUint16(0, true);
-      const heartRate = value.getUint8(2);
-
-      // Update ECG and Heart Rate on the webpage
-      ecgValueElement.textContent = `ECG: ${ecgValue}`;
-      heartRateElement.textContent = `Heart Rate: ${heartRate} BPM`;
-
-      // Draw ECG data on canvas
-      ecgData.push(ecgValue);
-      if (ecgData.length > 600) {
-        ecgData.shift(); // Keep the data limited to the canvas width
-      }
-
-      ecgCtx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height); // Clear previous canvas
-      ecgCtx.beginPath();
-      ecgCtx.moveTo(0, 100 - (ecgData[0] / 1024) * 100);
-      for (let i = 1; i < ecgData.length; i++) {
-        ecgCtx.lineTo(i, 100 - (ecgData[i] / 1024) * 100);
-      }
-      ecgCtx.stroke();
     }
-  </script>
+  });
+
+  // Function to handle incoming BLE notifications
+  function handleNotifications(event) {
+    const value = event.target.value;
+    const ecgValue = value.getUint16(0, true);
+    const heartRate = value.getUint8(2);
+
+    // Update ECG and Heart Rate on the webpage
+    ecgValueElement.textContent = `ECG: ${ecgValue}`;
+    heartRateElement.textContent = `Heart Rate: ${heartRate} BPM`;
+
+    // Draw ECG data on canvas
+    ecgData.push(ecgValue);
+    if (ecgData.length > 600) {
+      ecgData.shift(); // Keep the data limited to the canvas width
+    }
+
+    ecgCtx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height); // Clear previous canvas
+    ecgCtx.beginPath();
+    ecgCtx.moveTo(0, 100 - (ecgData[0] / 1024) * 100);
+    for (let i = 1; i < ecgData.length; i++) {
+      ecgCtx.lineTo(i, 100 - (ecgData[i] / 1024) * 100);
+    }
+    ecgCtx.stroke();
+  }
+</script>
 </body>
 </html>
