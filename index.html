@@ -30,47 +30,46 @@
     <canvas id="ecgChart"></canvas>
 
     <script>
-        const espId = "ECG_Monitor_1";
-        const socket = new WebSocket(`ws://${window.location.hostname}:81`);
+        const ip = "192.168.145.188";
+        const socket = new WebSocket(`ws://${ip}:81`);
 
-    let ecgChart;
-    let heartRateDisplay;
-    let statusIndicator;
+        let ecgChart;
+        let heartRateDisplay;
+        let statusIndicator;
 
-    document.addEventListener("DOMContentLoaded", function() {
-        ecgChart = document.getElementById('ecgChart').getContext('2d');
-        heartRateDisplay = document.getElementById('heartRateDisplay');
-        statusIndicator = document.getElementById('statusIndicator');
+        document.addEventListener("DOMContentLoaded", function() {
+            ecgChart = document.getElementById('ecgChart').getContext('2d');
+            heartRateDisplay = document.getElementById('heartRateDisplay');
+            statusIndicator = document.getElementById('statusIndicator');
 
-        ecgChart = new Chart(ecgChart, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'ECG Signal',
-                    data: [],
-                    borderColor: 'green',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
+            ecgChart = new Chart(ecgChart, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'ECG Signal',
+                        data: [],
+                        borderColor: 'green',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    }]
                 },
-                animation: false
-            }
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    animation: false
+                }
+            });
         });
-    });
 
-    socket.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        
-        if (data.espId === espId) {
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
             // Update ECG Chart
             ecgChart.data.labels.push('');
             ecgChart.data.datasets[0].data.push(data.ecgValue);
@@ -94,23 +93,22 @@
                 statusIndicator.textContent = 'Electrodes Disconnected ';
                 statusIndicator.style.color = 'red';
             }
-        }
-    };
+        };
 
-    socket.onopen = function(event) {
-        statusIndicator.textContent = 'Connected ';
-        statusIndicator.style.color = 'green';
-    };
+        socket.onopen = function(event) {
+            statusIndicator.textContent = 'Connected ';
+            statusIndicator.style.color = 'green';
+        };
 
-    socket.onclose = function(event) {
-        statusIndicator.textContent = 'Disconnected ';
-        statusIndicator.style.color = 'red';
-    };
+        socket.onclose = function(event) {
+            statusIndicator.textContent = 'Disconnected ';
+            statusIndicator.style.color = 'red';
+        };
 
-    socket.onerror = function(event) {
-        statusIndicator.textContent = 'Connection Error ';
-        statusIndicator.style.color = 'red';
-    };
-</script>
+        socket.onerror = function(event) {
+            statusIndicator.textContent = 'Connection Error ';
+            statusIndicator.style.color = 'red';
+        };
+    </script>
 </body>
 </html>
