@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECG Data</title>
+    <title>ECG Data Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         canvas {
@@ -13,10 +13,15 @@
     </style>
 </head>
 <body>
-    <h1>ECG Data</h1>
+    <h1>ECG Data Analysis</h1>
     <canvas id="ecgChart"></canvas>
     <div>
         <h2>Heart Rate: <span id="heartRate">0</span> BPM</h2>
+        <h2>R-R Interval: <span id="rrInterval">0</span> ms</h2>
+        <h2>PR Interval: <span id="prInterval">0</span> ms</h2>
+        <h2>QRS Interval: <span id="qrsInterval">0</span> ms</h2>
+        <h2>QT Interval: <span id="qtInterval">0</span> ms</h2>
+        <h2>ST-Segment: <span id="stSegment">0</span> ms</h2>
     </div>
     <button id="connectButton">Connect to ECG</button>
     <script>
@@ -26,6 +31,10 @@
         let characteristic;
         let previousRPeakTime = null;
         let rrIntervals = [];
+        let prIntervals = [];
+        let qrsIntervals = [];
+        let qtIntervals = [];
+        let stSegments = [];
         const rPeakThreshold = 150; // Adjusted threshold for R peaks
         const baselineOffset = 100; // Add a baseline offset to avoid touching zero
 
@@ -46,12 +55,18 @@
                 scales: {
                     x: {
                         type: 'linear',
-                        position: 'bottom'
+                        position: 'bottom',
+                        title: {
+                            display: true,
+                            text: 'Time (ms)'
+                        }
                     },
                     y: {
-                        beginAtZero: false,
-                        min: 0,
-                        max: 300 // Adjust y-axis limits if necessary
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'ECG Value'
+                        }
                     }
                 },
                 animation: {
@@ -85,32 +100,73 @@
             ecgValue += baselineOffset; // Apply baseline offset
             const currentTime = new Date().getTime(); // Get current time
 
-            // Update the chart with new data
-            if (ecgChart.data.labels.length > 100) {
-                ecgChart.data.labels.shift();
-                ecgChart.data.datasets[0].data.shift();
-            }
+            // Detect and process ECG peaks and intervals
+            processECGData(ecgValue, currentTime);
+        }
 
-            ecgChart.data.labels.push(currentTime);
-            ecgChart.data.datasets[0].data.push({ x: currentTime, y: ecgValue });
-            ecgChart.update();
-
+        // Process ECG data and calculate intervals
+        function processECGData(ecgValue, currentTime) {
             // Detect R peak
             if (ecgValue > rPeakThreshold) {
                 if (previousRPeakTime) {
                     const rrInterval = currentTime - previousRPeakTime;
                     rrIntervals.push(rrInterval);
 
-                    if (rrIntervals.length > 10) { // Use the last 10 intervals to calculate the average
+                    if (rrIntervals.length > 10) {
                         rrIntervals.shift();
                     }
 
                     const averageRrInterval = rrIntervals.reduce((a, b) => a + b) / rrIntervals.length;
-                    const heartRate = Math.round(60000 / averageRrInterval); // Convert ms interval to BPM
+                    const heartRate = Math.round(60000 / averageRrInterval);
                     document.getElementById('heartRate').innerText = heartRate;
+                    document.getElementById('rrInterval').innerText = rrInterval;
+
+                    // Update the chart with new data
+                    if (ecgChart.data.labels.length > 100) {
+                        ecgChart.data.labels.shift();
+                        ecgChart.data.datasets[0].data.shift();
+                    }
+
+                    ecgChart.data.labels.push(currentTime);
+                    ecgChart.data.datasets[0].data.push(ecgValue);
+                    ecgChart.update();
                 }
                 previousRPeakTime = currentTime;
             }
+
+            // Placeholder for other intervals (PR, QRS, QT, ST)
+            // You need to implement the actual peak detection logic for P, Q, S, T waves
+            // Below is just a placeholder for updating the display
+            const prInterval = calculatePRInterval();
+            const qrsInterval = calculateQRSInterval();
+            const qtInterval = calculateQTInterval();
+            const stSegment = calculateSTSegment();
+
+            document.getElementById('prInterval').innerText = prInterval;
+            document.getElementById('qrsInterval').innerText = qrsInterval;
+            document.getElementById('qtInterval').innerText = qtInterval;
+            document.getElementById('stSegment').innerText = stSegment;
+        }
+
+        // Placeholder functions for calculating intervals
+        function calculatePRInterval() {
+            // Implement PR interval calculation logic
+            return 0;
+        }
+
+        function calculateQRSInterval() {
+            // Implement QRS interval calculation logic
+            return 0;
+        }
+
+        function calculateQTInterval() {
+            // Implement QT interval calculation logic
+            return 0;
+        }
+
+        function calculateSTSegment() {
+            // Implement ST segment calculation logic
+            return 0;
         }
 
         // Set up the button click event to trigger Bluetooth connection
