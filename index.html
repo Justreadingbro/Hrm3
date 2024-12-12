@@ -26,7 +26,8 @@
         let characteristic;
         let previousRPeakTime = null;
         let rrIntervals = [];
-        const rPeakThreshold = 200; // Threshold to detect R peaks, adjust as needed
+        const rPeakThreshold = 150; // Adjusted threshold for R peaks
+        const baselineOffset = 50; // Add a baseline offset
 
         // Chart.js setup
         const ctx = document.getElementById('ecgChart').getContext('2d');
@@ -46,6 +47,11 @@
                     x: {
                         type: 'linear',
                         position: 'bottom'
+                    },
+                    y: {
+                        beginAtZero: false,
+                        min: -50,
+                        max: 300 // Adjust y-axis limits if necessary
                     }
                 },
                 animation: {
@@ -73,9 +79,23 @@
             }
         }
 
+        // Simple moving average filter
+        function movingAverage(data, windowSize) {
+            let result = [];
+            for (let i = 0; i < data.length - windowSize + 1; i++) {
+                let sum = 0;
+                for (let j = 0; j < windowSize; j++) {
+                    sum += data[i + j];
+                }
+                result.push(sum / windowSize);
+            }
+            return result;
+        }
+
         // Handle incoming data from Bluetooth device
         function handleData(event) {
-            const ecgValue = event.target.value.getUint8(0); // ECG data is received as uint8
+            let ecgValue = event.target.value.getUint8(0); // ECG data is received as uint8
+            ecgValue += baselineOffset; // Apply baseline offset
             const currentTime = new Date().getTime(); // Get current time
 
             // Update the chart with new data
@@ -86,6 +106,14 @@
 
             ecgChart.data.labels.push(currentTime);
             ecgChart.data.datasets[0].data.push({ x: currentTime, y: ecgValue });
+            ecgChart.update();
+
+            // Apply moving average filter for smoother data
+            const filteredData = movingAverage(ecgChart.data.datasets[0].data.map(point => point.y), 5);
+            ecgChart.data.datasets[0].data = ecgChart.data.labels.map((label, index) => ({
+                x: label,
+                y: filteredData[index] || 0
+            }));
             ecgChart.update();
 
             // Detect R peak
