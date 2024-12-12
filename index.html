@@ -15,17 +15,18 @@
       let service;
       let characteristic;
 
-      // Request Bluetooth device with specific services
+      // Request Bluetooth device with heart rate service
       async function connectBluetooth() {
         try {
           device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: ['heart_rate'] }]
+            filters: [{ services: ['180d'] }] // Heart rate service UUID
           });
 
+          // Connect to the device and get the Heart Rate service
           server = await device.gatt.connect();
-          service = await server.getPrimaryService('heart_rate');
-          characteristic = await service.getCharacteristic('heart_rate_measurement');
-          
+          service = await server.getPrimaryService('180d'); // Heart Rate Service UUID
+          characteristic = await service.getCharacteristic('2a37'); // Heart Rate Measurement Characteristic UUID
+
           characteristic.startNotifications();
           characteristic.addEventListener('characteristicvaluechanged', handleData);
         } catch (error) {
@@ -33,10 +34,59 @@
         }
       }
 
-      // Handle incoming data from Bluetooth device
+      // Handle incoming ECG data from Bluetooth
       function handleData(event) {
-        const data = event.target.value.getUint8(0); // ECG data is received as uint8
-        document.getElementById('ecgData').innerText = 'ECG: ' + data;
+        // The ECG data is being sent as a uint8 value (ECG value)
+        const ecgValue = event.target.value.getUint8(0);
+        document.getElementById('ecgData').innerText = 'ECG: ' + ecgValue;
+      }
+
+      // Set up the button click event to trigger Bluetooth connection
+      document.getElementById('connectButton').addEventListener('click', connectBluetooth);
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Data</title>
+</head>
+<body>
+    <h1>ECG Data</h1>
+    <div id="ecgData">Waiting for ECG Data...</div>
+    <button id="connectButton">Connect to ECG</button>
+    <script>
+      let device;
+      let server;
+      let service;
+      let characteristic;
+
+      // Request Bluetooth device with heart rate service
+      async function connectBluetooth() {
+        try {
+          device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['180d'] }] // Heart rate service UUID
+          });
+
+          // Connect to the device and get the Heart Rate service
+          server = await device.gatt.connect();
+          service = await server.getPrimaryService('180d'); // Heart Rate Service UUID
+          characteristic = await service.getCharacteristic('2a37'); // Heart Rate Measurement Characteristic UUID
+
+          characteristic.startNotifications();
+          characteristic.addEventListener('characteristicvaluechanged', handleData);
+        } catch (error) {
+          console.log('Error:', error);
+        }
+      }
+
+      // Handle incoming ECG data from Bluetooth
+      function handleData(event) {
+        // The ECG data is being sent as a uint8 value (ECG value)
+        const ecgValue = event.target.value.getUint8(0);
+        document.getElementById('ecgData').innerText = 'ECG: ' + ecgValue;
       }
 
       // Set up the button click event to trigger Bluetooth connection
