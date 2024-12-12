@@ -8,27 +8,49 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            text-align: center;
         }
         .output {
-            font-size: 1.5em;
+            font-size: 1.2em;
             margin-top: 20px;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            display: block;
+            margin: 20px auto;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
     </style>
 </head>
 <body>
-    <h1>ECG and Heart Rate Data</h1>
+    <h1>ECG and Heart Rate Viewer</h1>
     <button id="connectBtn">Connect to ECG Device</button>
     <div class="output">
         <p><strong>Heart Rate (BPM):</strong> <span id="heartRate">N/A</span></p>
         <p><strong>ECG Value:</strong> <span id="ecgValue">N/A</span></p>
         <p><strong>R-peak Interval (ms):</strong> <span id="rPeakInterval">N/A</span></p>
     </div>
+    <canvas id="ecgCanvas" width="600" height="300"></canvas>
 
     <script>
         const connectBtn = document.getElementById('connectBtn');
         const heartRateDisplay = document.getElementById('heartRate');
         const ecgValueDisplay = document.getElementById('ecgValue');
         const rPeakIntervalDisplay = document.getElementById('rPeakInterval');
+        const ecgCanvas = document.getElementById('ecgCanvas');
+        const ctx = ecgCanvas.getContext('2d');
+
+        // ECG data buffer for visualization
+        const ecgData = [];
+        const maxDataPoints = 100; // Max number of data points to display
 
         connectBtn.addEventListener('click', connectToDevice);
 
@@ -50,22 +72,48 @@
                 characteristic.startNotifications();
                 characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
 
+                connectBtn.disabled = true;
                 console.log('Connected to ECG Device');
             } catch (error) {
-                console.log('Error connecting to device:', error);
+                console.error('Error connecting to device:', error);
             }
         }
 
         function handleCharacteristicValueChanged(event) {
             const value = event.target.value;
-            const ecg = value.getUint8(0) + (value.getUint8(1) << 8);  // ECG value from two bytes
+            const ecg = value.getUint8(0) + (value.getUint8(1) << 8); // ECG value from two bytes
             const heartRate = value.getUint8(2); // Heart rate value
-            const rPeakInterval = value.getUint8(3) + (value.getUint8(4) << 8);  // R-peak interval from two bytes
+            const rPeakInterval = value.getUint8(3) + (value.getUint8(4) << 8); // R-peak interval from two bytes
 
-            // Update UI with the latest values
+            // Update UI
             ecgValueDisplay.textContent = ecg;
-            heartRateDisplay.textContent = heartRate;
+            heartRateDisplay.textContent = heartRate > 0 ? heartRate : "N/A";
             rPeakIntervalDisplay.textContent = rPeakInterval;
+
+            // Update ECG graph
+            updateECGGraph(ecg);
+        }
+
+        function updateECGGraph(ecg) {
+            if (ecgData.length >= maxDataPoints) {
+                ecgData.shift(); // Remove the oldest data point if buffer is full
+            }
+            ecgData.push(ecg);
+
+            // Clear the canvas
+            ctx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
+
+            // Draw the ECG data as a line graph
+            ctx.beginPath();
+            ctx.moveTo(0, ecgCanvas.height / 2);
+            for (let i = 0; i < ecgData.length; i++) {
+                const x = (i / maxDataPoints) * ecgCanvas.width;
+                const y = (ecgCanvas.height / 2) - (ecgData[i] / 1024 * ecgCanvas.height / 2); // Normalize ECG value
+                ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = '#007BFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         }
     </script>
 </body>
