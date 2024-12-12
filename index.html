@@ -32,7 +32,7 @@
 </head>
 <body>
     <h1>ECG and Heart Rate Viewer</h1>
-    <button id="connectBtn">Connect to ECG Device</button>
+    <button id="connectBtn">Scan and Connect to ECG Device</button>
     <div class="output">
         <p><strong>Heart Rate (BPM):</strong> <span id="heartRate">N/A</span></p>
         <p><strong>ECG Value:</strong> <span id="ecgValue">N/A</span></p>
@@ -56,31 +56,35 @@
 
         async function connectToDevice() {
             try {
-                // Request Bluetooth device
+                // Request Bluetooth device with a UI pop-up
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: ['180d'] }]
+                    filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }] // Heart Rate Service UUID
                 });
 
-                // Connect to the device
+                // Connect to the selected device
                 const server = await device.gatt.connect();
 
-                // Get the Heart Rate Measurement characteristic
-                const service = await server.getPrimaryService('180d');
-                const characteristic = await service.getCharacteristic('2a37');
+                // Get the Heart Rate Service and Measurement Characteristic
+                const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb'); // Heart Rate Service UUID
+                const characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb'); // Heart Rate Measurement Characteristic UUID
 
-                // Start notifications on the characteristic
-                characteristic.startNotifications();
+                // Start receiving notifications
+                await characteristic.startNotifications();
                 characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
 
                 connectBtn.disabled = true;
                 console.log('Connected to ECG Device');
+                alert('Connected to ECG Device');
             } catch (error) {
-                console.error('Error connecting to device:', error);
+                console.error('Error during Bluetooth connection:', error);
+                alert('Failed to connect to ECG device. Please try again.');
             }
         }
 
         function handleCharacteristicValueChanged(event) {
             const value = event.target.value;
+
+            // Parsing the data from the BLE characteristic
             const ecg = value.getUint8(0) + (value.getUint8(1) << 8); // ECG value from two bytes
             const heartRate = value.getUint8(2); // Heart rate value
             const rPeakInterval = value.getUint8(3) + (value.getUint8(4) << 8); // R-peak interval from two bytes
