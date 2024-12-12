@@ -15,76 +15,97 @@
 <body>
     <h1>ECG Data</h1>
     <canvas id="ecgChart"></canvas>
+    <div>
+        <h2>Heart Rate: <span id="heartRate">0</span> BPM</h2>
+    </div>
     <button id="connectButton">Connect to ECG</button>
     <script>
-      let device;
-      let server;
-      let service;
-      let characteristic;
+        let device;
+        let server;
+        let service;
+        let characteristic;
+        let previousTime = null;
+        let rrIntervals = [];
 
-      // Chart.js setup
-      const ctx = document.getElementById('ecgChart').getContext('2d');
-      const ecgChart = new Chart(ctx, {
-          type: 'line',
-          data: {
-              labels: [],
-              datasets: [{
-                  label: 'ECG Data',
-                  data: [],
-                  borderColor: 'rgb(75, 192, 192)',
-                  fill: false,
-              }]
-          },
-          options: {
-              scales: {
-                  x: {
-                      type: 'linear',
-                      position: 'bottom'
-                  }
-              },
-              animation: {
-                  duration: 0 // Disable animation to get real-time updates
-              }
-          }
-      });
+        // Chart.js setup
+        const ctx = document.getElementById('ecgChart').getContext('2d');
+        const ecgChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'ECG Data',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    fill: false,
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom'
+                    }
+                },
+                animation: {
+                    duration: 0 // Disable animation to get real-time updates
+                }
+            }
+        });
 
-      // Request Bluetooth device with specific services
-      async function connectBluetooth() {
-        try {
-          device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }] // Full Heart Rate Service UUID
-          });
+        // Request Bluetooth device with specific services
+        async function connectBluetooth() {
+            try {
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }] // Full Heart Rate Service UUID
+                });
 
-          // Connect to the device and get the Heart Rate service
-          server = await device.gatt.connect();
-          service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb'); // Full Heart Rate Service UUID
-          characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb'); // Full Heart Rate Measurement Characteristic UUID
+                // Connect to the device and get the Heart Rate service
+                server = await device.gatt.connect();
+                service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb'); // Full Heart Rate Service UUID
+                characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb'); // Full Heart Rate Measurement Characteristic UUID
 
-          characteristic.startNotifications();
-          characteristic.addEventListener('characteristicvaluechanged', handleData);
-        } catch (error) {
-          console.log('Error:', error);
-        }
-      }
-
-      // Handle incoming data from Bluetooth device
-      function handleData(event) {
-        const ecgValue = event.target.value.getUint8(0); // ECG data is received as uint8
-        const currentTime = new Date().getTime(); // Get current time
-
-        // Update the chart with new data
-        if (ecgChart.data.labels.length > 100) {
-          ecgChart.data.labels.shift();
-          ecgChart.data.datasets[0].data.shift();
+                characteristic.startNotifications();
+                characteristic.addEventListener('characteristicvaluechanged', handleData);
+            } catch (error) {
+                console.log('Error:', error);
+            }
         }
 
-        ecgChart.data.labels.push(currentTime);
-        ecgChart.data.datasets[0].data.push({ x: currentTime, y: ecgValue });
-        ecgChart.update();
-      }
+        // Handle incoming data from Bluetooth device
+        function handleData(event) {
+            const ecgValue = event.target.value.getUint8(0); // ECG data is received as uint8
+            const currentTime = new Date().getTime(); // Get current time
 
-      // Set up the button click event to trigger Bluetooth connection
-      document.getElementById('connectButton').addEventListener('click', connectBluetooth);
+            // Update the chart with new data
+            if (ecgChart.data.labels.length > 100) {
+                ecgChart.data.labels.shift();
+                ecgChart.data.datasets[0].data.shift();
+            }
+
+            ecgChart.data.labels.push(currentTime);
+            ecgChart.data.datasets[0].data.push({ x: currentTime, y: ecgValue });
+            ecgChart.update();
+
+            // Calculate heart rate from RR intervals
+            if (previousTime) {
+                const rrInterval = currentTime - previousTime;
+                rrIntervals.push(rrInterval);
+
+                if (rrIntervals.length > 10) { // Use the last 10 intervals to calculate the average
+                    rrIntervals.shift();
+                }
+
+                const averageRrInterval = rrIntervals.reduce((a, b) => a + b) / rrIntervals.length;
+                const heartRate = Math.round(60000 / averageRrInterval); // Convert ms interval to BPM
+                document.getElementById('heartRate').innerText = heartRate;
+            }
+
+            previousTime = currentTime;
+        }
+
+        // Set up the button click event to trigger Bluetooth connection
+        document.getElementById('connectButton').addEventListener('click', connectBluetooth);
     </script>
 </body>
 </html>
