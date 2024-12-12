@@ -8,6 +8,7 @@
 <body>
     <h1>ECG Data</h1>
     <div id="ecgData">Waiting for ECG Data...</div>
+    <button id="connectButton">Connect to ECG</button>
     <script>
       let device;
       let server;
@@ -38,7 +39,8 @@
         document.getElementById('ecgData').innerText = 'ECG: ' + data;
       }
 
-      connectBluetooth();
+      // Set up the button click event to trigger Bluetooth connection
+      document.getElementById('connectButton').addEventListener('click', connectBluetooth);
     </script>
 </body>
 </html>
