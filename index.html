@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECG Data Display with Geolocation and Map</title>
+  <title>ECG Data with Automatic CSV Download</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    /* Same styles as before */
     body {
       font-family: Arial, sans-serif;
       background-color: rgb(68, 68, 68);
@@ -59,7 +58,7 @@
   </style>
 </head>
 <body>
-  <h1 class="title">ECG Data Display with Geolocation and Map</h1>
+  <h1 class="title">ECG Data with Automatic CSV Download</h1>
   <button id="connectBtn" class="button">Connect to ECG Device</button>
   <div id="status"></div>
   <div class="data">
@@ -80,7 +79,8 @@
     let statusElement = document.getElementById('status');
     let ecgCanvas = document.getElementById('ecgCanvas');
     let ctx = ecgCanvas.getContext('2d');
-    let ecgData = [];
+    let ecgData = []; // Array to store ECG data
+    let heartRateData = []; // Array to store heart rate data
     let locationElement = document.getElementById('location');
     let map;
     let marker;
@@ -117,7 +117,11 @@
       ecgValueElement.textContent = ecgValue;
       heartRateElement.textContent = heartRate.toFixed(2);
 
-      if (ecgValue > 250) {
+      // Store the values in the arrays
+      ecgData.push(ecgValue);
+      heartRateData.push(heartRate);
+
+      if (ecgValue > 200) {
         fetchGeolocation();
         sendAlertMessage(`Abnormal ECG detected: ${ecgValue}`);
       }
@@ -126,11 +130,6 @@
     }
 
     function updateECGGraph(ecgValue) {
-      ecgData.push(ecgValue);
-      if (ecgData.length > ecgCanvas.width / 2) { // Adjust this value to manage the data length
-        ecgData.shift();
-      }
-
       ctx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
       ctx.beginPath();
 
@@ -172,42 +171,47 @@
 
     function updateMap(lat, lng) {
       if (!map) {
-        // Initialize the map
         map = L.map('map').setView([lat, lng], 15);
-
-        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-
-        // Add a marker to the map
         marker = L.marker([lat, lng]).addTo(map);
       } else {
-        // Update the marker position
         marker.setLatLng([lat, lng]);
         map.setView([lat, lng], 15);
       }
     }
 
-    async function sendAlertMessage(message) {
-      try {
-        const response = await fetch('https://s26khvv1-3000.inc1.devtunnels.ms/send-alert', {  // Update to a public server
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ message, recipients: ['+91 70029 29308'] }) // Add more phone numbers as needed
-        });
-        const result = await response.json();
-        if (result.success) {
-          console.log('Alert sent successfully:', result.messageSids);
-        } else {
-          console.error('Failed to send alert:', result.error);
-        }
-      } catch (error) {
-        console.error('Error sending alert:', error);
-      }
+    // Convert the stored data to CSV format
+    function convertToCSV() {
+      const header = ['ECG Value', 'Heart Rate'];
+      const rows = ecgData.map((value, index) => [value, heartRateData[index]]);
+      const csvContent = [header, ...rows].map(row => row.join(',')).join('\n');
+      return csvContent;
     }
+
+    // Generate unique filename using timestamp
+    function generateFileName() {
+      const timestamp = new Date().toISOString().replace(/[-T:.]/g, ''); // Remove non-alphanumeric characters
+      return `ecg_data_${timestamp}.csv`;
+    }
+
+    // Trigger the CSV file download with a unique name
+    function downloadCSV() {
+      const csvContent = convertToCSV();
+      const filename = generateFileName(); // Generate unique file name
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+
+    // Automatically download CSV every 10 seconds
+    setInterval(() => {
+      downloadCSV();
+    }, 10000); // Every 10 seconds
+
   </script>
 </body>
 </html>
