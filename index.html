@@ -117,7 +117,7 @@
       ecgValueElement.textContent = ecgValue;
       heartRateElement.textContent = heartRate.toFixed(2);
 
-      if (ecgValue > 260) {
+      if (ecgValue > 250) {
         fetchGeolocation();
         sendAlertMessage(`Abnormal ECG detected: ${ecgValue}`);
       }
