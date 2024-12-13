@@ -120,6 +120,10 @@
         fetchGeolocation();
       }
 
+      if (ecgValue > 200) {
+        sendAlertMessage(`Abnormal ECG detected: ${ecgValue}`);
+      }
+
       updateECGGraph(ecgValue);
     }
 
@@ -178,12 +182,32 @@
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Add a marker
+        // Add a marker to the map
         marker = L.marker([lat, lng]).addTo(map);
       } else {
         // Update the marker position
-        map.setView([lat, lng], 15);
         marker.setLatLng([lat, lng]);
+        map.setView([lat, lng], 15);
+      }
+    }
+
+    async function sendAlertMessage(message) {
+      try {
+        const response = await fetch('http://localhost:3000/send-alert', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ message, recipients: ['+91 70029 29308'] }) // Add more phone numbers as needed
+        });
+        const result = await response.json();
+        if (result.success) {
+          console.log('Alert sent successfully:', result.messageSids);
+        } else {
+          console.error('Failed to send alert:', result.error);
+        }
+      } catch (error) {
+        console.error('Error sending alert:', error);
       }
     }
   </script>
