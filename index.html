@@ -8,16 +8,18 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f3f3f3;
+      background-color:rgb(68, 68, 68);
       text-align: center;
       padding: 20px;
     }
     .title {
       font-size: 2em;
+      color: white;
       margin-bottom: 20px;
     }
     .data {
       font-size: 1.5em;
+      color: white;
       margin: 10px;
     }
     .button {
@@ -33,13 +35,19 @@
       background-color: #ccc;
     }
     canvas {
-      margin-top: 20px;
-      border: 1px solid #ddd;
-    }
+  margin-top: 20px;
+  color: white; /* Text color */
+  border: 1px solid white; /* Border color */
+  background-color: rgb(241, 211, 147); /* Transparent background */
+  background-image: 
+    repeating-linear-gradient(0deg, rgba(238, 128, 128, 0.98) 0px, rgba(0, 0, 0, 0.23) 1px, transparent 1px, transparent 19px),
+    repeating-linear-gradient(90deg, rgba(240, 94, 94, 0.55) 0px, rgba(0, 0, 0, 0.19) 1px, transparent 1px, transparent 19px);
+  background-size: 20px 20px; /* Size of the grid squares */
+}
     .location {
       margin-top: 20px;
       font-size: 1.2em;
-      color: #333;
+      color: white;
     }
     #map {
       width: 100%;
@@ -57,7 +65,7 @@
     <p><strong>ECG Value:</strong> <span id="ecgValue">0</span></p>
     <p><strong>Heart Rate:</strong> <span id="heartRate">0.00</span> BPM</p>
   </div>
-  <canvas id="ecgCanvas" width="800" height="200"></canvas>
+  <canvas id="ecgCanvas" width="1600" height="400"></canvas>
   <div class="location" id="location"></div>
   <div id="map"></div>
 
@@ -123,14 +131,18 @@
 
       ctx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
       ctx.beginPath();
-      ctx.moveTo(0, ecgCanvas.height / 2);
+
+      let centerY = ecgCanvas.height / 1.5; // Vertical center
+      let pointSpacing = 15; // Horizontal spacing between points
 
       ecgData.forEach((value, index) => {
-        let x = index;
-        let y = ecgCanvas.height / 2 - value;
+        let x = index * pointSpacing; // Spread out points horizontally
+        let y = centerY - value; // Center the waveform and scale amplitude
         ctx.lineTo(x, y);
       });
 
+      ctx.strokeStyle = '#000'; // Set the stroke color
+      ctx.lineWidth = 1; // Set line thickness for visibility
       ctx.stroke();
     }
 
