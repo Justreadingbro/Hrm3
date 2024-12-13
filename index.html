@@ -6,6 +6,7 @@
   <title>ECG Data Display with Geolocation and Map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
+    /* Same styles as before */
     body {
       font-family: Arial, sans-serif;
       background-color: rgb(68, 68, 68);
@@ -190,7 +191,7 @@
 
     async function sendAlertMessage(message) {
       try {
-        const response = await fetch('http://localhost:3000/send-alert', {
+        const response = await fetch('https://s26khvv1-5500.inc1.devtunnels.ms/send-alert', {  // Update to a public server
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
