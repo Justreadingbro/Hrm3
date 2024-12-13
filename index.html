@@ -118,9 +118,6 @@
 
       if (ecgValue > 200) {
         fetchGeolocation();
-      }
-
-      if (ecgValue > 200) {
         sendAlertMessage(`Abnormal ECG detected: ${ecgValue}`);
       }
 
