@@ -8,7 +8,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color:rgb(68, 68, 68);
+      background-color: rgb(68, 68, 68);
       text-align: center;
       padding: 20px;
     }
@@ -35,15 +35,15 @@
       background-color: #ccc;
     }
     canvas {
-  margin-top: 20px;
-  color: white; /* Text color */
-  border: 1px solid white; /* Border color */
-  background-color: rgb(241, 211, 147); /* Transparent background */
-  background-image: 
-    repeating-linear-gradient(0deg, rgba(238, 128, 128, 0.98) 0px, rgba(0, 0, 0, 0.23) 1px, transparent 1px, transparent 19px),
-    repeating-linear-gradient(90deg, rgba(240, 94, 94, 0.55) 0px, rgba(0, 0, 0, 0.19) 1px, transparent 1px, transparent 19px);
-  background-size: 20px 20px; /* Size of the grid squares */
-}
+      margin-top: 20px;
+      color: white;
+      border: 1px solid white;
+      background-color: rgb(241, 211, 147);
+      background-image:
+        repeating-linear-gradient(0deg, rgba(238, 128, 128, 0.98) 0px, rgba(0, 0, 0, 0.23) 1px, transparent 1px, transparent 19px),
+        repeating-linear-gradient(90deg, rgba(240, 94, 94, 0.55) 0px, rgba(0, 0, 0, 0.19) 1px, transparent 1px, transparent 19px);
+      background-size: 20px 20px;
+    }
     .location {
       margin-top: 20px;
       font-size: 1.2em;
@@ -125,7 +125,7 @@
 
     function updateECGGraph(ecgValue) {
       ecgData.push(ecgValue);
-      if (ecgData.length > ecgCanvas.width) {
+      if (ecgData.length > ecgCanvas.width / 2) { // Adjust this value to manage the data length
         ecgData.shift();
       }
 
@@ -136,13 +136,17 @@
       let pointSpacing = 15; // Horizontal spacing between points
 
       ecgData.forEach((value, index) => {
-        let x = index * pointSpacing; // Spread out points horizontally
-        let y = centerY - value; // Center the waveform and scale amplitude
-        ctx.lineTo(x, y);
+        let x = index * pointSpacing;
+        let y = centerY - value;
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
       });
 
       ctx.strokeStyle = '#000'; // Set the stroke color
-      ctx.lineWidth = 1; // Set line thickness for visibility
+      ctx.lineWidth = 1.5; // Set line thickness for visibility
       ctx.stroke();
     }
 
