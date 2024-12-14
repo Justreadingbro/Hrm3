@@ -95,7 +95,7 @@
 
     async function connectDevice() {
       try {
-        const device = await navigator.bluetooth.requestDevice({
+        device = await navigator.bluetooth.requestDevice({
           filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]
         });
 
@@ -144,11 +144,18 @@
     }
 
     function updateECGGraph(ecgValue) {
+      // Shift data if it exceeds the canvas width
+      const pointSpacing = 15; // Horizontal spacing between points
+      const maxPoints = Math.floor(ecgCanvas.width / pointSpacing);
+
+      if (ecgData.length > maxPoints) {
+        ecgData.shift(); // Remove the oldest data point to make space for new data
+      }
+
       ctx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
       ctx.beginPath();
 
       let centerY = ecgCanvas.height / 1.5; // Vertical center
-      let pointSpacing = 15; // Horizontal spacing between points
 
       ecgData.forEach((value, index) => {
         let x = index * pointSpacing;
@@ -213,6 +220,16 @@
     // Trigger the CSV file download with a unique name
     function downloadCSV() {
       const csvContent = convertToCSV();
+      const filename = generateFileName(); // Generate unique file
+    // Generate unique filename using timestamp
+    function generateFileName() {
+      const timestamp = new Date().toISOString().replace(/[-T:.]/g, ''); // Remove non-alphanumeric characters
+      return `ecg_data_${timestamp}.csv`;
+    }
+
+    // Trigger the CSV file download with a unique name
+    function downloadCSV() {
+      const csvContent = convertToCSV();
       const filename = generateFileName(); // Generate unique file name
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const link = document.createElement('a');
@@ -221,10 +238,10 @@
       link.click();
     }
 
-    // Automatically download CSV every 10 seconds
+    // Automatically download CSV every 60 seconds
     setInterval(() => {
       downloadCSV();
-    }, 10000); // Every 10 seconds
+    }, 60000); // Every 60 seconds
 
     // Send alert message (placeholder for real alert system, e.g., email API)
     async function sendAlertMessage(message) {
@@ -249,3 +266,4 @@
   </script>
 </body>
 </html>
+
