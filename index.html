@@ -58,7 +58,7 @@
   </style>
 </head>
 <body>
-  <h1 class="title">ECG Data with Automatic CSV Download</h1>
+  <h1 class="title">ECG Data</h1>
   <button id="connectBtn" class="button">Connect to ECG Device</button>
   <div id="status"></div>
   <div class="data">
@@ -127,7 +127,7 @@
     function handleCharacteristicValueChanged(event) {
       const value = event.target.value;
       const ecgValue = value.getUint8(0); // ECG value from the first byte
-      const heartRate = value.getUint8(2); // Heart rate value from the 3rd byte
+      const heartRate = value.getUint8(1); // Heart rate value from the 2nd byte (update according to ESP32)
 
       ecgValueElement.textContent = ecgValue;
       heartRateElement.textContent = heartRate.toFixed(2);
@@ -138,7 +138,7 @@
 
       if (ecgValue > 200) {
         fetchGeolocation();
-        sendAlertMessage(`Abnormal ECG detected: ${ecgValue}`);
+        sendAlertMessage(Abnormal ECG detected: ${ecgValue});
       }
 
       updateECGGraph(ecgValue);
@@ -179,15 +179,15 @@
           (position) => {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
-            locationElement.innerHTML = `<strong>Location:</strong> Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`;
+            locationElement.innerHTML = <strong>Location:</strong> Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)};
             updateMap(latitude, longitude);
           },
           (error) => {
-            locationElement.innerHTML = `<strong>Error fetching location:</strong> ${error.message}`;
+            locationElement.innerHTML = <strong>Error fetching location:</strong> ${error.message};
           }
         );
       } else {
-        locationElement.innerHTML = `<strong>Error:</strong> Geolocation is not supported by your browser.`;
+        locationElement.innerHTML = <strong>Error:</strong> Geolocation is not supported by your browser.;
       }
     }
 
@@ -215,7 +215,7 @@
     // Generate unique filename using timestamp
     function generateFileName() {
       const timestamp = new Date().toISOString().replace(/[-T:.]/g, ''); // Remove non-alphanumeric characters
-      return `ecg_data_${timestamp}.csv`;
+      return ecg_data_${timestamp}.csv;
     }
 
     // Trigger the CSV file download with a unique name
