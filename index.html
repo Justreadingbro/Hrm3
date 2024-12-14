@@ -143,7 +143,6 @@
     document.getElementById('connectBtn').addEventListener('click', async () => {
       try {
         document.getElementById('status').textContent = 'Connecting...';
-        console.log('Requesting Bluetooth device...');
         
         // Request Bluetooth device with heart rate service
         bluetoothDevice = await navigator.bluetooth.requestDevice({
