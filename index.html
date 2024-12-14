@@ -146,7 +146,7 @@
 
     function updateECGGraph(ecgValue) {
       // Shift data if it exceeds the canvas width
-      const pointSpacing = 15; // Horizontal spacing between points
+      const pointSpacing = 5; // Horizontal spacing between points
       const maxPoints = Math.floor(ecgCanvas.width / pointSpacing);
 
       if (ecgData.length > maxPoints) {
