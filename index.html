@@ -24,7 +24,7 @@
 </head>
 <body>
   <h1>Simulated 3-Lead ECG</h1>
-  <button id="connectBtn">Connect to BLE Device</button>
+  <button id="connectBtn">Connect to ESP32</button>
   <p id="status">Disconnected</p>
   <canvas id="lead1"></canvas>
   <canvas id="lead2"></canvas>
@@ -144,9 +144,9 @@
       try {
         document.getElementById('status').textContent = 'Connecting...';
         
-        // Request Bluetooth device with heart rate service
+        // Request Bluetooth device with the heart rate service
         bluetoothDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['heart_rate'] }]  // Specify the required services
+          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]  // Correct UUID for heart rate service
         });
 
         console.log('Device found, connecting...');
@@ -155,16 +155,16 @@
         const server = await bluetoothDevice.gatt.connect();
 
         // Get the heart rate service
-        const service = await server.getPrimaryService('heart_rate');
+        const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
         
-        // Get the characteristic for heart rate data
-        bluetoothCharacteristic = await service.getCharacteristic('heart_rate_measurement');
+        // Get the characteristic for ECG data
+        bluetoothCharacteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
         
         // Start receiving notifications from the characteristic
         bluetoothCharacteristic.startNotifications();
         
         // Listen for characteristic value changes (data updates)
-        bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleHeartRateData);
+        bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleECGData);
 
         document.getElementById('status').textContent = 'Connected and receiving data';
         console.log('Connected and receiving data');
@@ -174,15 +174,17 @@
       }
     });
 
-    // Handle the heart rate data when it changes
-    function handleHeartRateData(event) {
+    // Handle ECG data when it changes
+    function handleECGData(event) {
       const value = event.target.value;
-      const heartRateData = value.getUint8(1); // Adjust this according to the received data format
+      const lead1 = value.getUint8(0) | (value.getUint8(1) << 8);
+      const lead2 = value.getUint8(2) | (value.getUint8(3) << 8);
+      const lead3 = value.getUint8(4) | (value.getUint8(5) << 8);
 
-      // Simulate the Lead data with heart rate data (you can modify this part as needed)
-      lead1Data.push(heartRateData);
-      lead2Data.push(heartRateData);
-      lead3Data.push(heartRateData);
+      // Simulate ECG data by adding to the respective leads
+      lead1Data.push(lead1);
+      lead2Data.push(lead2);
+      lead3Data.push(lead3);
 
       const timestamp = new Date();
 
