@@ -12,20 +12,12 @@
     }
     #connectBtn {
       margin-top: 20px;
-      padding: 10px 20px;
-      font-size: 16px;
-    }
-    #status {
-      font-size: 18px;
-      margin-top: 10px;
-      color: green;
     }
   </style>
 </head>
 <body>
   <h1>Simulated 3-Lead ECG</h1>
-  <button id="connectBtn">Connect to ESP32</button>
-  <p id="status">Disconnected</p>
+  <button id="connectBtn">Connect to BLE Device</button>
   <canvas id="lead1"></canvas>
   <canvas id="lead2"></canvas>
   <canvas id="lead3"></canvas>
@@ -34,7 +26,6 @@
     let lead1Data = [];
     let lead2Data = [];
     let lead3Data = [];
-    let leadLabels = [];
 
     const ctx1 = document.getElementById('lead1').getContext('2d');
     const ctx2 = document.getElementById('lead2').getContext('2d');
@@ -43,96 +34,39 @@
     const lead1Chart = new Chart(ctx1, {
       type: 'line',
       data: {
-        labels: leadLabels,
+        labels: [],
         datasets: [{
           label: 'Lead I',
           data: lead1Data,
           borderColor: 'rgba(255, 99, 132, 1)',
           fill: false,
         }]
-      },
-      options: {
-        animation: false, // Disable animations
-        responsive: true,
-        scales: {
-          x: {
-            type: 'time',
-            time: {
-              unit: 'second',
-            },
-            ticks: {
-              autoSkip: true,
-              maxTicksLimit: 10
-            },
-          },
-          y: {
-            beginAtZero: true
-          }
-        }
       }
     });
 
     const lead2Chart = new Chart(ctx2, {
       type: 'line',
       data: {
-        labels: leadLabels,
+        labels: [],
         datasets: [{
           label: 'Lead II',
           data: lead2Data,
           borderColor: 'rgba(54, 162, 235, 1)',
           fill: false,
         }]
-      },
-      options: {
-        animation: false, // Disable animations
-        responsive: true,
-        scales: {
-          x: {
-            type: 'time',
-            time: {
-              unit: 'second',
-            },
-            ticks: {
-              autoSkip: true,
-              maxTicksLimit: 10
-            },
-          },
-          y: {
-            beginAtZero: true
-          }
-        }
       }
     });
 
     const lead3Chart = new Chart(ctx3, {
       type: 'line',
       data: {
-        labels: leadLabels,
+        labels: [],
         datasets: [{
           label: 'Lead III',
           data: lead3Data,
           borderColor: 'rgba(75, 192, 192, 1)',
           fill: false,
         }]
-      },
-      options: {
-        animation: false, // Disable animations
-        responsive: true,
-        scales: {
-          x: {
-            type: 'time',
-            time: {
-              unit: 'second',
-            },
-            ticks: {
-              autoSkip: true,
-              maxTicksLimit: 10
-            },
-          },
-          y: {
-            beginAtZero: true
-          }
-        }
       }
     });
 
@@ -142,69 +76,62 @@
     // Handle BLE scan and connection
     document.getElementById('connectBtn').addEventListener('click', async () => {
       try {
-        document.getElementById('status').textContent = 'Connecting...';
+        console.log('Requesting Bluetooth device...');
         
-        // Request Bluetooth device with the heart rate service
+        // Request Bluetooth device (Update this to match your ECG device UUID)
         bluetoothDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]  // Correct UUID for heart rate service
+          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]  // Use ECG service UUID here
         });
 
-        console.log('Device found, connecting...');
+        console.log('Connecting to device...');
         
         // Connect to the selected device
         const server = await bluetoothDevice.gatt.connect();
 
-        // Get the heart rate service
+        // Get the ECG service (Change this if your service UUID differs)
         const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
         
-        // Get the characteristic for ECG data
+        // Get the characteristic for ECG data (Update UUID if necessary)
         bluetoothCharacteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
         
-        // Start receiving notifications from the characteristic
+        // Start receiving data from the characteristic
         bluetoothCharacteristic.startNotifications();
         
-        // Listen for characteristic value changes (data updates)
+        // Listen for notifications from the device
         bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleECGData);
 
-        document.getElementById('status').textContent = 'Connected and receiving data';
-        console.log('Connected and receiving data');
+        console.log('Connected and receiving ECG data');
       } catch (error) {
-        document.getElementById('status').textContent = 'Connection Failed';
         console.log('Error during Bluetooth connection:', error);
       }
     });
 
-    // Handle ECG data when it changes
+    // Handle the ECG data when it changes
     function handleECGData(event) {
       const value = event.target.value;
-      const lead1 = value.getUint8(0) | (value.getUint8(1) << 8);
-      const lead2 = value.getUint8(2) | (value.getUint8(3) << 8);
-      const lead3 = value.getUint8(4) | (value.getUint8(5) << 8);
+      
+      // Get the ECG data (example of unpacking 2 bytes for each lead)
+      const lead1 = value.getUint8(0) | (value.getUint8(1) << 8); // Lead I
+      const lead2 = value.getUint8(2) | (value.getUint8(3) << 8); // Lead II
+      const lead3 = value.getUint8(4) | (value.getUint8(5) << 8); // Lead III
 
-      // Simulate ECG data by adding to the respective leads
+      // Add new data for each lead
       lead1Data.push(lead1);
       lead2Data.push(lead2);
       lead3Data.push(lead3);
 
-      const timestamp = new Date();
+      // Create a timestamp for labeling the X-axis
+      const timestamp = new Date().toLocaleTimeString();
 
-      // Simulate timestamps for scrolling data
-      leadLabels.push(timestamp);
+      // Add the timestamp for all leads
+      lead1Chart.data.labels.push(timestamp);
+      lead2Chart.data.labels.push(timestamp);
+      lead3Chart.data.labels.push(timestamp);
 
-      // Limit the number of data points shown on the chart
-      if (lead1Data.length > 100) {
-        lead1Data.shift();
-        lead2Data.shift();
-        lead3Data.shift();
-        leadLabels.shift();
-      }
-
-      // Update charts in batches every 10 data points to reduce unnecessary updates
-      if (lead1Data.length % 10 === 0) {
-        lead1Chart.update();
-        lead2Chart.update();
-        lead3Chart.update();
-      }
+      // Update the charts
+      lead1Chart.update();
+      lead2Chart.update();
+      lead3Chart.update();
     }
   </script>
 </body>
