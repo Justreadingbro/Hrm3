@@ -24,6 +24,7 @@
 
   <script>
     const maxDataPoints = 100;  // Maximum number of data points to keep in the chart
+    const updateInterval = 100; // Interval in milliseconds to add new data (slower movement)
 
     let lead1Data = [];
     let lead2Data = [];
@@ -164,6 +165,20 @@
       lead2Chart.update();
       lead3Chart.update();
     }
+
+    // Function to periodically add data and simulate slower chart updates
+    function slowUpdate() {
+      setInterval(() => {
+        if (lead1Data.length > 0) {
+          lead1Chart.update();
+          lead2Chart.update();
+          lead3Chart.update();
+        }
+      }, updateInterval);  // Update interval, control the speed here
+    }
+
+    // Start the slow update process
+    slowUpdate();
   </script>
 </body>
 </html>
