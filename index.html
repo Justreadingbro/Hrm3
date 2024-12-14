@@ -145,12 +145,12 @@
         document.getElementById('status').textContent = 'Connecting...';
         console.log('Requesting Bluetooth device...');
         
-        // Request Bluetooth device
+        // Request Bluetooth device with heart rate service
         bluetoothDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['heart_rate'] }]  // Filter for heart rate service
+          filters: [{ services: ['heart_rate'] }]  // Specify the required services
         });
 
-        console.log('Connecting to device...');
+        console.log('Device found, connecting...');
         
         // Connect to the selected device
         const server = await bluetoothDevice.gatt.connect();
@@ -161,10 +161,10 @@
         // Get the characteristic for heart rate data
         bluetoothCharacteristic = await service.getCharacteristic('heart_rate_measurement');
         
-        // Start receiving data
+        // Start receiving notifications from the characteristic
         bluetoothCharacteristic.startNotifications();
         
-        // Listen for notifications from the device
+        // Listen for characteristic value changes (data updates)
         bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleHeartRateData);
 
         document.getElementById('status').textContent = 'Connected and receiving data';
@@ -178,7 +178,7 @@
     // Handle the heart rate data when it changes
     function handleHeartRateData(event) {
       const value = event.target.value;
-      const heartRateData = value.getUint8(1); // Adjust according to the received data format
+      const heartRateData = value.getUint8(1); // Adjust this according to the received data format
 
       // Simulate the Lead data with heart rate data (you can modify this part as needed)
       lead1Data.push(heartRateData);
