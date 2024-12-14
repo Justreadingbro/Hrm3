@@ -23,10 +23,12 @@
   <canvas id="lead3"></canvas>
 
   <script>
+    const maxDataPoints = 100;  // Maximum number of data points to keep in the chart
+
     let lead1Data = [];
     let lead2Data = [];
     let lead3Data = [];
-
+    
     const ctx1 = document.getElementById('lead1').getContext('2d');
     const ctx2 = document.getElementById('lead2').getContext('2d');
     const ctx3 = document.getElementById('lead3').getContext('2d');
@@ -130,7 +132,14 @@
       const lead2 = value.getUint8(2) | (value.getUint8(3) << 8); // Lead II
       const lead3 = value.getUint8(4) | (value.getUint8(5) << 8); // Lead III
 
-      // Add new data for each lead
+      // Add new data for each lead and remove the oldest if the array exceeds the max limit
+      if (lead1Data.length >= maxDataPoints) {
+        lead1Data.shift();  // Remove the oldest data
+        lead2Data.shift();
+        lead3Data.shift();
+      }
+
+      // Add the new data points
       lead1Data.push(lead1);
       lead2Data.push(lead2);
       lead3Data.push(lead3);
@@ -138,7 +147,14 @@
       // Create a timestamp for labeling the X-axis
       const timestamp = new Date().toLocaleTimeString();
 
-      // Add the timestamp for all leads
+      // Add the timestamp for all leads and remove the oldest if the label count exceeds the max limit
+      if (lead1Chart.data.labels.length >= maxDataPoints) {
+        lead1Chart.data.labels.shift();  // Remove the oldest label
+        lead2Chart.data.labels.shift();
+        lead3Chart.data.labels.shift();
+      }
+
+      // Add the new timestamp
       lead1Chart.data.labels.push(timestamp);
       lead2Chart.data.labels.push(timestamp);
       lead3Chart.data.labels.push(timestamp);
