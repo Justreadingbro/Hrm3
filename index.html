@@ -41,6 +41,11 @@
           borderColor: 'rgba(255, 99, 132, 1)',
           fill: false,
         }]
+      },
+      options: {
+        animation: {
+          duration: 0 // Disable animation
+        }
       }
     });
 
@@ -54,6 +59,11 @@
           borderColor: 'rgba(54, 162, 235, 1)',
           fill: false,
         }]
+      },
+      options: {
+        animation: {
+          duration: 0 // Disable animation
+        }
       }
     });
 
@@ -67,6 +77,11 @@
           borderColor: 'rgba(75, 192, 192, 1)',
           fill: false,
         }]
+      },
+      options: {
+        animation: {
+          duration: 0 // Disable animation
+        }
       }
     });
 
@@ -128,7 +143,7 @@
       lead2Chart.data.labels.push(timestamp);
       lead3Chart.data.labels.push(timestamp);
 
-      // Update the charts
+      // Update the charts without animation
       lead1Chart.update();
       lead2Chart.update();
       lead3Chart.update();
