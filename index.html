@@ -3,257 +3,89 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECG Data</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <title>ECG Visualization</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: rgb(68, 68, 68);
-      text-align: center;
-      padding: 20px;
-    }
-    .title {
-      font-size: 2em;
-      color: white;
-      margin-bottom: 20px;
-    }
-    .data {
-      font-size: 1.5em;
-      color: white;
-      margin: 10px;
-    }
-    .button {
-      padding: 10px 20px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 1em;
-    }
-    .button:disabled {
-      background-color: #ccc;
-    }
     canvas {
-      margin-top: 20px;
-      color: white;
-      border: 1px solid white;
-      background-color: rgb(241, 211, 147);
-      background-image:
-        repeating-linear-gradient(0deg, rgba(238, 128, 128, 0.98) 0px, rgba(0, 0, 0, 0.23) 1px, transparent 1px, transparent 19px),
-        repeating-linear-gradient(90deg, rgba(240, 94, 94, 0.55) 0px, rgba(0, 0, 0, 0.19) 1px, transparent 1px, transparent 19px);
-      background-size: 20px 20px;
-    }
-    .location {
-      margin-top: 20px;
-      font-size: 1.2em;
-      color: white;
-    }
-    #map {
       width: 100%;
       height: 400px;
-      margin-top: 20px;
-      border: 1px solid #ddd;
     }
   </style>
 </head>
 <body>
-  <h1 class="title">ECG Data with Automatic CSV Download</h1>
-  <button id="connectBtn" class="button">Connect to ECG Device</button>
-  <div id="status"></div>
-  <div class="data">
-    <p><strong>ECG Value:</strong> <span id="ecgValue">0</span></p>
-    <p><strong>Heart Rate:</strong> <span id="heartRate">0.00</span> BPM</p>
-  </div>
-  <canvas id="ecgCanvas" width="1600" height="400"></canvas>
-  <div class="location" id="location"></div>
-  <div id="map"></div>
+  <h1>Simulated 3-Lead ECG</h1>
+  <canvas id="lead1"></canvas>
+  <canvas id="lead2"></canvas>
+  <canvas id="lead3"></canvas>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    let device;
-    let characteristic;
-    let ecgValueElement = document.getElementById('ecgValue');
-    let heartRateElement = document.getElementById('heartRate');
-    let connectBtn = document.getElementById('connectBtn');
-    let statusElement = document.getElementById('status');
-    let ecgCanvas = document.getElementById('ecgCanvas');
-    let ctx = ecgCanvas.getContext('2d');
-    let ecgData = []; // Array to store ECG data
-    let heartRateData = []; // Array to store heart rate data
-    let locationElement = document.getElementById('location');
-    let map;
-    let marker;
+    let lead1Data = [];
+    let lead2Data = [];
+    let lead3Data = [];
 
-    connectBtn.addEventListener('click', () => {
-      if (connectBtn.textContent === 'Connect to ECG Device') {
-        connectDevice();
-      } else {
-        disconnectDevice();
+    const ctx1 = document.getElementById('lead1').getContext('2d');
+    const ctx2 = document.getElementById('lead2').getContext('2d');
+    const ctx3 = document.getElementById('lead3').getContext('2d');
+
+    const lead1Chart = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Lead I',
+          data: lead1Data,
+          borderColor: 'rgba(255, 99, 132, 1)',
+          fill: false,
+        }]
       }
     });
 
-    async function connectDevice() {
-      try {
-        device = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]
-        });
-
-        statusElement.innerHTML = 'Connecting...';
-
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
-        characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
-
-        characteristic.startNotifications();
-        characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
-
-        statusElement.innerHTML = 'Connected!';
-        connectBtn.textContent = 'Disconnect from ECG Device';  // Change button text
-      } catch (error) {
-        statusElement.innerHTML = 'Error: ' + error;
-        console.error('Connection error:', error);
+    const lead2Chart = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Lead II',
+          data: lead2Data,
+          borderColor: 'rgba(54, 162, 235, 1)',
+          fill: false,
+        }]
       }
-    }
+    });
 
-    function disconnectDevice() {
-      if (device && device.gatt.connected) {
-        device.gatt.disconnect();
-        statusElement.innerHTML = 'Disconnected!';
-        connectBtn.textContent = 'Connect to ECG Device';  // Change button text back
+    const lead3Chart = new Chart(ctx3, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Lead III',
+          data: lead3Data,
+          borderColor: 'rgba(75, 192, 192, 1)',
+          fill: false,
+        }]
       }
-    }
+    });
 
-    function handleCharacteristicValueChanged(event) {
-      const value = event.target.value;
-      const ecgValue = value.getUint8(0); // ECG value from the first byte
-      const heartRate = value.getUint8(2); // Heart rate value from the 3rd byte
+    // WebSocket connection for receiving data
+    const socket = new WebSocket('ws://your-ble-data-server');  // Adjust for your server
 
-      ecgValueElement.textContent = ecgValue;
-      heartRateElement.textContent = heartRate.toFixed(2);
+    socket.onmessage = function(event) {
+      const data = JSON.parse(event.data);  // Data format [Lead1, Lead1, Lead1]
 
-      // Store the values in the arrays
-      ecgData.push(ecgValue);
-      heartRateData.push(heartRate);
+      // Update the three charts with the same data
+      lead1Data.push(data[0]);
+      lead2Data.push(data[2]);
+      lead3Data.push(data[4]);
 
-      if (ecgValue > 200) {
-        fetchGeolocation();
-        sendAlertMessage(`Abnormal ECG detected: ${ecgValue}`);
-      }
+      const timestamp = new Date().toLocaleTimeString();
+      lead1Chart.data.labels.push(timestamp);
+      lead2Chart.data.labels.push(timestamp);
+      lead3Chart.data.labels.push(timestamp);
 
-      updateECGGraph(ecgValue);
-    }
-
-    function updateECGGraph(ecgValue) {
-      // Shift data if it exceeds the canvas width
-      const pointSpacing = 5; // Horizontal spacing between points
-      const maxPoints = Math.floor(ecgCanvas.width / pointSpacing);
-
-      if (ecgData.length > maxPoints) {
-        ecgData.shift(); // Remove the oldest data point to make space for new data
-      }
-
-      ctx.clearRect(0, 0, ecgCanvas.width, ecgCanvas.height);
-      ctx.beginPath();
-
-      let centerY = ecgCanvas.height / 1.5; // Vertical center
-
-      ecgData.forEach((value, index) => {
-        let x = index * pointSpacing;
-        let y = centerY - value;
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-
-      ctx.strokeStyle = '#000'; // Set the stroke color
-      ctx.lineWidth = 1.5; // Set line thickness for visibility
-      ctx.stroke();
-    }
-
-    function fetchGeolocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-            locationElement.innerHTML = `<strong>Location:</strong> Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`;
-            updateMap(latitude, longitude);
-          },
-          (error) => {
-            locationElement.innerHTML = `<strong>Error fetching location:</strong> ${error.message}`;
-          }
-        );
-      } else {
-        locationElement.innerHTML = `<strong>Error:</strong> Geolocation is not supported by your browser.`;
-      }
-    }
-
-    function updateMap(lat, lng) {
-      if (!map) {
-        map = L.map('map').setView([lat, lng], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-        marker = L.marker([lat, lng]).addTo(map);
-      } else {
-        marker.setLatLng([lat, lng]);
-        map.setView([lat, lng], 15);
-      }
-    }
-
-    // Convert the stored data to CSV format
-    function convertToCSV() {
-      const header = ['ECG Value', 'Heart Rate'];
-      const rows = ecgData.map((value, index) => [value, heartRateData[index]]);
-      const csvContent = [header, ...rows].map(row => row.join(',')).join('\n');
-      return csvContent;
-    }
-
-    // Generate unique filename using timestamp
-    function generateFileName() {
-      const timestamp = new Date().toISOString().replace(/[-T:.]/g, ''); // Remove non-alphanumeric characters
-      return `ecg_data_${timestamp}.csv`;
-    }
-
-    // Trigger the CSV file download with a unique name
-    function downloadCSV() {
-      const csvContent = convertToCSV();
-      const filename = generateFileName(); // Generate unique file name
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      link.click();
-    }
-
-    // Automatically download CSV every 60 seconds
-    setInterval(() => {
-      downloadCSV();
-    }, 60000); // Every 60 seconds
-
-    // Send alert message (placeholder for real alert system, e.g., email API)
-    async function sendAlertMessage(message) {
-      try {
-        const response = await fetch('https://s26khvv1-3000.inc1.devtunnels.ms/send-alert', {  // Update to a public server
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ message, recipients: ['+91 70029 29308'] }) // Add more phone numbers as needed
-        });
-        const result = await response.json();
-        if (result.success) {
-          console.log('Alert sent successfully:', result.messageSids);
-        } else {
-          console.error('Failed to send alert:', result.error);
-        }
-      } catch (error) {
-        console.error('Error sending alert:', error);
-      }
-    }
+      lead1Chart.update();
+      lead2Chart.update();
+      lead3Chart.update();
+    };
   </script>
 </body>
 </html>
