@@ -10,10 +10,14 @@
       width: 100%;
       height: 400px;
     }
+    #connectBtn {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
   <h1>Simulated 3-Lead ECG</h1>
+  <button id="connectBtn">Connect to BLE Device</button>
   <canvas id="lead1"></canvas>
   <canvas id="lead2"></canvas>
   <canvas id="lead3"></canvas>
@@ -66,26 +70,62 @@
       }
     });
 
-    // WebSocket connection for receiving data
-    const socket = new WebSocket('ws://your-ble-data-server');  // Adjust for your server
+    let bluetoothDevice;
+    let bluetoothCharacteristic;
 
-    socket.onmessage = function(event) {
-      const data = JSON.parse(event.data);  // Data format [Lead1, Lead1, Lead1]
+    // Handle BLE scan and connection
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+      try {
+        console.log('Requesting Bluetooth device...');
+        
+        // Request Bluetooth device
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ services: ['heart_rate'] }]  // Filter for heart rate service
+        });
 
-      // Update the three charts with the same data
-      lead1Data.push(data[0]);
-      lead2Data.push(data[2]);
-      lead3Data.push(data[4]);
+        console.log('Connecting to device...');
+        
+        // Connect to the selected device
+        const server = await bluetoothDevice.gatt.connect();
+
+        // Get the heart rate service
+        const service = await server.getPrimaryService('heart_rate');
+        
+        // Get the characteristic for heart rate data
+        bluetoothCharacteristic = await service.getCharacteristic('heart_rate_measurement');
+        
+        // Start receiving data
+        bluetoothCharacteristic.startNotifications();
+        
+        // Listen for notifications from the device
+        bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleHeartRateData);
+
+        console.log('Connected and receiving data');
+      } catch (error) {
+        console.log('Error during Bluetooth connection:', error);
+      }
+    });
+
+    // Handle the heart rate data when it changes
+    function handleHeartRateData(event) {
+      const value = event.target.value;
+      const heartRateData = value.getUint8(1); // Adjust according to the received data format
+
+      // Simulate the Lead data and update charts
+      lead1Data.push(heartRateData);
+      lead2Data.push(heartRateData);
+      lead3Data.push(heartRateData);
 
       const timestamp = new Date().toLocaleTimeString();
       lead1Chart.data.labels.push(timestamp);
       lead2Chart.data.labels.push(timestamp);
       lead3Chart.data.labels.push(timestamp);
 
+      // Update the charts
       lead1Chart.update();
       lead2Chart.update();
       lead3Chart.update();
-    };
+    }
   </script>
 </body>
 </html>
