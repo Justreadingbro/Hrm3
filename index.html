@@ -23,8 +23,8 @@
   <canvas id="lead3"></canvas>
 
   <script>
-    const maxDataPoints = 500;  // Maximum number of data points to keep in the chart
-    const updateInterval = 200; // Interval in milliseconds to add new data (slower movement)
+    const maxDataPoints = 100;  // Maximum number of data points to keep in the chart
+    const updateInterval = 50; // Interval in milliseconds to add new data (faster movement)
 
     let lead1Data = [];
     let lead2Data = [];
@@ -48,6 +48,13 @@
       options: {
         animation: {
           duration: 0 // Disable animation
+        },
+        scales: {
+          x: {
+            ticks: {
+              display: false // Hide x-axis labels
+            }
+          }
         }
       }
     });
@@ -66,6 +73,13 @@
       options: {
         animation: {
           duration: 0 // Disable animation
+        },
+        scales: {
+          x: {
+            ticks: {
+              display: false // Hide x-axis labels
+            }
+          }
         }
       }
     });
@@ -84,6 +98,13 @@
       options: {
         animation: {
           duration: 0 // Disable animation
+        },
+        scales: {
+          x: {
+            ticks: {
+              display: false // Hide x-axis labels
+            }
+          }
         }
       }
     });
@@ -166,19 +187,19 @@
       lead3Chart.update();
     }
 
-    // Function to periodically add data and simulate slower chart updates
-    function slowUpdate() {
+    // Function to periodically add data and simulate faster chart updates
+    function fastUpdate() {
       setInterval(() => {
         if (lead1Data.length > 0) {
           lead1Chart.update();
           lead2Chart.update();
           lead3Chart.update();
         }
-      }, updateInterval);  // Increase this value to slow down the graph movement
+      }, updateInterval);  // Decrease this value to speed up the graph movement
     }
 
-    // Start the slow update process
-    slowUpdate();
+    // Start the fast update process
+    fastUpdate();
   </script>
 </body>
 </html>
