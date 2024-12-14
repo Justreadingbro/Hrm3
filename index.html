@@ -50,6 +50,25 @@
           borderColor: 'rgba(255, 99, 132, 1)',
           fill: false,
         }]
+      },
+      options: {
+        animation: false, // Disable animations
+        responsive: true,
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              unit: 'second',
+            },
+            ticks: {
+              autoSkip: true,
+              maxTicksLimit: 10
+            },
+          },
+          y: {
+            beginAtZero: true
+          }
+        }
       }
     });
 
@@ -63,6 +82,25 @@
           borderColor: 'rgba(54, 162, 235, 1)',
           fill: false,
         }]
+      },
+      options: {
+        animation: false, // Disable animations
+        responsive: true,
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              unit: 'second',
+            },
+            ticks: {
+              autoSkip: true,
+              maxTicksLimit: 10
+            },
+          },
+          y: {
+            beginAtZero: true
+          }
+        }
       }
     });
 
@@ -76,6 +114,25 @@
           borderColor: 'rgba(75, 192, 192, 1)',
           fill: false,
         }]
+      },
+      options: {
+        animation: false, // Disable animations
+        responsive: true,
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              unit: 'second',
+            },
+            ticks: {
+              autoSkip: true,
+              maxTicksLimit: 10
+            },
+          },
+          y: {
+            beginAtZero: true
+          }
+        }
       }
     });
 
@@ -128,8 +185,18 @@
       lead2Data.push(heartRateData);
       lead3Data.push(heartRateData);
 
-      const timestamp = new Date().toLocaleTimeString();
+      const timestamp = new Date();
+
+      // Simulate timestamps for scrolling data
       leadLabels.push(timestamp);
+
+      // Limit the number of data points shown on the chart
+      if (lead1Data.length > 100) {
+        lead1Data.shift();
+        lead2Data.shift();
+        lead3Data.shift();
+        leadLabels.shift();
+      }
 
       // Update charts in batches every 10 data points to reduce unnecessary updates
       if (lead1Data.length % 10 === 0) {
