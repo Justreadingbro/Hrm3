@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ECG Data with Automatic CSV Download</title>
+  <title>ECG Data</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body {
@@ -112,6 +112,7 @@
         connectBtn.textContent = 'Disconnect from ECG Device';  // Change button text
       } catch (error) {
         statusElement.innerHTML = 'Error: ' + error;
+        console.error('Connection error:', error);
       }
     }
 
@@ -220,16 +221,6 @@
     // Trigger the CSV file download with a unique name
     function downloadCSV() {
       const csvContent = convertToCSV();
-      const filename = generateFileName(); // Generate unique file
-    // Generate unique filename using timestamp
-    function generateFileName() {
-      const timestamp = new Date().toISOString().replace(/[-T:.]/g, ''); // Remove non-alphanumeric characters
-      return `ecg_data_${timestamp}.csv`;
-    }
-
-    // Trigger the CSV file download with a unique name
-    function downloadCSV() {
-      const csvContent = convertToCSV();
       const filename = generateFileName(); // Generate unique file name
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const link = document.createElement('a');
@@ -266,4 +257,3 @@
   </script>
 </body>
 </html>
-
