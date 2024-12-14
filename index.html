@@ -95,12 +95,19 @@
 
     async function connectDevice() {
       try {
+        if (!navigator.bluetooth) {
+          statusElement.innerHTML = 'Bluetooth is not supported in your browser.';
+          return;
+        }
+
+        // Request the device with the required Bluetooth service
         device = await navigator.bluetooth.requestDevice({
           filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]
         });
 
         statusElement.innerHTML = 'Connecting...';
 
+        // Connect to the Bluetooth device and its GATT server
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
         characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
@@ -111,7 +118,13 @@
         statusElement.innerHTML = 'Connected!';
         connectBtn.textContent = 'Disconnect from ECG Device';  // Change button text
       } catch (error) {
-        statusElement.innerHTML = 'Error: ' + error;
+        if (error.name === 'NotFoundError') {
+          statusElement.innerHTML = 'No compatible Bluetooth device found.';
+        } else if (error.name === 'SecurityError') {
+          statusElement.innerHTML = 'Permission denied. Please ensure Bluetooth is enabled.';
+        } else {
+          statusElement.innerHTML = 'Error: ' + error;
+        }
         console.error('Connection error:', error);
       }
     }
@@ -138,7 +151,7 @@
 
       if (ecgValue > 200) {
         fetchGeolocation();
-        sendAlertMessage(Abnormal ECG detected: ${ecgValue});
+        sendAlertMessage(`Abnormal ECG detected: ${ecgValue}`);
       }
 
       updateECGGraph(ecgValue);
@@ -179,15 +192,15 @@
           (position) => {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
-            locationElement.innerHTML = <strong>Location:</strong> Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)};
+            locationElement.innerHTML = `<strong>Location:</strong> Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`;
             updateMap(latitude, longitude);
           },
           (error) => {
-            locationElement.innerHTML = <strong>Error fetching location:</strong> ${error.message};
+            locationElement.innerHTML = `<strong>Error fetching location:</strong> ${error.message}`;
           }
         );
       } else {
-        locationElement.innerHTML = <strong>Error:</strong> Geolocation is not supported by your browser.;
+        locationElement.innerHTML = `<strong>Error:</strong> Geolocation is not supported by your browser.`;
       }
     }
 
@@ -215,7 +228,7 @@
     // Generate unique filename using timestamp
     function generateFileName() {
       const timestamp = new Date().toISOString().replace(/[-T:.]/g, ''); // Remove non-alphanumeric characters
-      return ecg_data_${timestamp}.csv;
+      return `ecg_data_${timestamp}.csv`;
     }
 
     // Trigger the CSV file download with a unique name
@@ -234,42 +247,6 @@
       downloadCSV();
     }, 60000); // Every 60 seconds
 
-    // Send alert message (placeholder for real alert system, e.g., email API)
-    async function connectDevice() {
-  try {
-    if (!navigator.bluetooth) {
-      statusElement.innerHTML = 'Bluetooth is not supported in your browser.';
-      return;
-    }
-
-    // Request the device with the required Bluetooth service
-    device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]
-    });
-
-    statusElement.innerHTML = 'Connecting...';
-
-    // Connect to the Bluetooth device and its GATT server
-    const server = await device.gatt.connect();
-    const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
-    characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
-
-    characteristic.startNotifications();
-    characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
-
-    statusElement.innerHTML = 'Connected!';
-    connectBtn.textContent = 'Disconnect from ECG Device';  // Change button text
-  } catch (error) {
-    if (error.name === 'NotFoundError') {
-      statusElement.innerHTML = 'No compatible Bluetooth device found.';
-    } else if (error.name === 'SecurityError') {
-      statusElement.innerHTML = 'Permission denied. Please ensure Bluetooth is enabled.';
-    } else {
-      statusElement.innerHTML = 'Error: ' + error;
-    }
-    console.error('Connection error:', error);
-  }
-}
   </script>
 </body>
 </html>
