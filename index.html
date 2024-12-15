@@ -183,6 +183,29 @@
         console.error('Error sending alert:', error);
       }
     }
+
+    // Function to convert data array to CSV format and download it
+    function downloadCSV() {
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "Timestamp,Lead I\n"; // Add CSV headers
+
+      lead1Chart.data.labels.forEach((label, index) => {
+        const dataPoint = lead1Data[index];
+        csvContent += `${label},${dataPoint}\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "ecg_data.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Trigger CSV download every 5 minutes (300000 milliseconds)
+    setInterval(downloadCSV, 300000); // Adjust interval as needed
+
   </script>
 </body>
 </html>
