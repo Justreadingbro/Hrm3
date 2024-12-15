@@ -172,7 +172,6 @@
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ message, recipients: ['+91 98005 40761'] }) // Adjust as needed
-          mode: 'no-cors'
         });
         const result = await response.json();
         if (result.success) {
