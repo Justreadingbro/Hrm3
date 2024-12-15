@@ -166,27 +166,26 @@
     // Send alert message to the server
     async function sendAlertMessage(message, latitude, longitude) {
       try {
-        // Modify this URL to the server's API endpoint
-        const response = await fetch('http://localhost:3000/send-alert', {  // URL of your server
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ 
-            message, 
-            recipients: ['+1234567890', '+91 98005 40761'], // List of recipient phone numbers
-            latitude, 
-            longitude 
-          }) // Adjust as needed
+        // Use your Twilio credentials
+        const accountSid = 'your_account_sid';
+        const authToken = 'your_auth_token';
+        const twilioNumber = 'your_twilio_number';
+        
+        const twilioClient = require('twilio')(accountSid, authToken);
+        
+        const recipients = ['+1234567890', '+91 98005 40761']; // List of recipient phone numbers
+        
+        recipients.forEach(async (recipient) => {
+          await twilioClient.messages.create({
+            body: `${message} at coordinates: ${latitude}, ${longitude}`,
+            from: twilioNumber,
+            to: recipient
+          });
         });
-        const result = await response.json();
-        if (result.success) {
-          console.log('Alert sent successfully to server');
-        } else {
-          console.error('Failed to send alert to server');
-        }
+
+        console.log('Alert sent successfully via Twilio');
       } catch (error) {
-        console.error('Error sending alert:', error);
+        console.error('Error sending alert via Twilio:', error);
       }
     }
 
@@ -248,4 +247,4 @@
     document.body.appendChild(downloadBtn);
   </script>
 </body>
-</html>
+</
