@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     canvas {
-      width: 50%;   /* Set canvas width to 50% of screen width */
-      height: 150px; /* Set height to 150px */
+      width: 50%;
+      height: 150px;
     }
     #connectBtn {
       margin-top: 20px;
@@ -27,12 +27,12 @@
   <button id="connectBtn">Connect to BLE Device</button>
   <canvas id="lead1"></canvas>
 
-  <div id="map"></div> <!-- Map container added -->
+  <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const maxDataPoints = 1000;  // Maximum number of data points to keep in the chart
-    const updateInterval = 200; // Interval in milliseconds to add new data (slower movement)
+    const maxDataPoints = 1000;  
+    const updateInterval = 200;
 
     let lead1Data = [];
     
@@ -47,12 +47,12 @@
           data: lead1Data,
           borderColor: 'rgba(255, 99, 132, 1)',
           fill: false,
-          pointRadius: 0,  // Remove the dots
+          pointRadius: 0,
         }]
       },
       options: {
         animation: {
-          duration: 0 // Disable animation
+          duration: 0
         }
       }
     });
@@ -60,31 +60,24 @@
     let bluetoothDevice;
     let bluetoothCharacteristic;
 
-    // Handle BLE scan and connection
     document.getElementById('connectBtn').addEventListener('click', async () => {
       try {
         console.log('Requesting Bluetooth device...');
 
-        // Request Bluetooth device (Update this to match your ECG device UUID)
         bluetoothDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]  // Use ECG service UUID here
+          filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]
         });
 
         console.log('Connecting to device...');
 
-        // Connect to the selected device
         const server = await bluetoothDevice.gatt.connect();
 
-        // Get the ECG service (Change this if your service UUID differs)
         const service = await server.getPrimaryService('0000180d-0000-1000-8000-00805f9b34fb');
         
-        // Get the characteristic for ECG data (Update UUID if necessary)
         bluetoothCharacteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
         
-        // Start receiving data from the characteristic
         bluetoothCharacteristic.startNotifications();
         
-        // Listen for notifications from the device
         bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleECGData);
 
         console.log('Connected and receiving ECG data');
@@ -93,42 +86,30 @@
       }
     });
 
-    // Handle the ECG data when it changes
     function handleECGData(event) {
       const value = event.target.value;
+      const lead1 = value.getUint8(0) | (value.getUint8(1) << 8);
 
-      // Get the ECG data for Lead I (example of unpacking 2 bytes for Lead I)
-      const lead1 = value.getUint8(0) | (value.getUint8(1) << 8); // Lead I
-
-      // Add new data for Lead I and remove the oldest if the array exceeds the max limit
       if (lead1Data.length >= maxDataPoints) {
-        lead1Data.shift();  // Remove the oldest data
+        lead1Data.shift();
       }
 
-      // Add the new data point for Lead I
       lead1Data.push(lead1);
 
-      // Create a timestamp for labeling the X-axis
       const timestamp = new Date().toLocaleTimeString();
 
-      // Add the timestamp for Lead I and remove the oldest if the label count exceeds the max limit
       if (lead1Chart.data.labels.length >= maxDataPoints) {
-        lead1Chart.data.labels.shift();  // Remove the oldest label
+        lead1Chart.data.labels.shift();
       }
 
-      // Add the new timestamp for Lead I
       lead1Chart.data.labels.push(timestamp);
-
-      // Update the chart without animation
       lead1Chart.update();
 
-      // If the ECG value exceeds 1500, show location and send alert
       if (lead1 > 1500) {
         fetchGeolocation(lead1);
       }
     }
 
-    // Function to fetch geolocation
     function fetchGeolocation(lead1Value) {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -137,7 +118,7 @@
             const longitude = position.coords.longitude;
             updateMap(latitude, longitude);
             sendAlertMessage(`Abnormal ECG value: ${lead1Value}`, latitude, longitude);
-            sendLocationToThingSpeak(latitude, longitude); // Send location to ThingSpeak
+            sendLocationToThingSpeak(latitude, longitude);
           },
           (error) => {
             console.error('Error fetching location:', error);
@@ -146,7 +127,6 @@
       }
     }
 
-    // Initialize the map with given coordinates
     let map;
     let marker;
 
@@ -163,7 +143,6 @@
       }
     }
 
-    // Send alert message to the server
     async function sendAlertMessage(message, latitude, longitude) {
       try {
         const response = await fetch('https://s26khvv1-3000.inc1.devtunnels.ms/send-alert', {
@@ -171,24 +150,28 @@
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ message, latitude, longitude })
+          body: JSON.stringify({ 
+            message: `${message}. Location: https://justreadingbro.github.io/RKD/?lat=${latitude}&lng=${longitude}`, 
+            recipients: ['+1234567890', '+91 98005 40761'],
+            latitude, 
+            longitude 
+          })
         });
-
-        if (response.ok) {
-          console.log('Alert sent successfully via server');
+        const result = await response.json();
+        if (result.success) {
+          console.log('Alert sent successfully to server');
         } else {
-          console.error('Error sending alert via server:', response.statusText);
+          console.error('Failed to send alert to server');
         }
       } catch (error) {
-        console.error('Error sending alert via server:', error);
+        console.error('Error sending alert:', error);
       }
     }
 
-    // Function to send location to ThingSpeak every 15 seconds
     async function sendLocationToThingSpeak(latitude, longitude) {
       try {
-        const apiKey = '9ZMRHD8I1MAC0794'; // Your ThingSpeak Write API Key
-        const channelId = '2786038'; // Your ThingSpeak Channel ID
+        const apiKey = '9ZMRHD8I1MAC0794';
+        const channelId = '2786038';
 
         const url = `https://api.thingspeak.com/update.json?api_key=${apiKey}&field1=${latitude}&field2=${longitude}`;
 
@@ -205,7 +188,6 @@
       }
     }
 
-    // Trigger sending location to ThingSpeak every 15 seconds
     setInterval(() => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((position) => {
@@ -216,10 +198,9 @@
       }
     }, 15000);
 
-    // Function to convert data array to CSV format and download it
     function downloadCSV() {
       let csvContent = "data:text/csv;charset=utf-8,";
-      csvContent += "Timestamp,Lead I\n"; // Add CSV headers
+      csvContent += "Timestamp,Lead I\n";
 
       lead1Chart.data.labels.forEach((label, index) => {
         const dataPoint = lead1Data[index];
@@ -235,13 +216,11 @@
       document.body.removeChild(link);
     }
 
-    // Add a button to download CSV
     const downloadBtn = document.createElement('button');
     downloadBtn.textContent = 'Download CSV';
     downloadBtn.style.marginTop = '20px';
     downloadBtn.addEventListener('click', downloadCSV);
     document.body.appendChild(downloadBtn);
-
   </script>
 </body>
 </html>
