@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ECG Visualization</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     canvas {
       width: 50%;   /* Set canvas width to 50% of screen width */
@@ -13,26 +14,29 @@
     #connectBtn {
       margin-top: 20px;
     }
+    #map {
+      width: 100%;
+      height: 400px;
+      margin-top: 20px;
+      border: 1px solid #ddd;
+    }
   </style>
 </head>
 <body>
-  <h1>Simulated 3-Lead ECG</h1>
+  <h1>ECG Lead I</h1>
   <button id="connectBtn">Connect to BLE Device</button>
   <canvas id="lead1"></canvas>
-  <canvas id="lead2"></canvas>
-  <canvas id="lead3"></canvas>
 
+  <div id="map"></div> <!-- Map container added -->
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const maxDataPoints = 100;  // Maximum number of data points to keep in the chart
-    const updateInterval = 50; // Interval in milliseconds to add new data (faster movement)
+    const maxDataPoints = 1000;  // Maximum number of data points to keep in the chart
+    const updateInterval = 200; // Interval in milliseconds to add new data (slower movement)
 
     let lead1Data = [];
-    let lead2Data = [];
-    let lead3Data = [];
     
     const ctx1 = document.getElementById('lead1').getContext('2d');
-    const ctx2 = document.getElementById('lead2').getContext('2d');
-    const ctx3 = document.getElementById('lead3').getContext('2d');
 
     const lead1Chart = new Chart(ctx1, {
       type: 'line',
@@ -43,68 +47,12 @@
           data: lead1Data,
           borderColor: 'rgba(255, 99, 132, 1)',
           fill: false,
+          pointRadius: 0,  // Remove the dots
         }]
       },
       options: {
         animation: {
           duration: 0 // Disable animation
-        },
-        scales: {
-          x: {
-            ticks: {
-              display: false // Hide x-axis labels
-            }
-          }
-        }
-      }
-    });
-
-    const lead2Chart = new Chart(ctx2, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Lead II',
-          data: lead2Data,
-          borderColor: 'rgba(54, 162, 235, 1)',
-          fill: false,
-        }]
-      },
-      options: {
-        animation: {
-          duration: 0 // Disable animation
-        },
-        scales: {
-          x: {
-            ticks: {
-              display: false // Hide x-axis labels
-            }
-          }
-        }
-      }
-    });
-
-    const lead3Chart = new Chart(ctx3, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Lead III',
-          data: lead3Data,
-          borderColor: 'rgba(75, 192, 192, 1)',
-          fill: false,
-        }]
-      },
-      options: {
-        animation: {
-          duration: 0 // Disable animation
-        },
-        scales: {
-          x: {
-            ticks: {
-              display: false // Hide x-axis labels
-            }
-          }
         }
       }
     });
@@ -149,57 +97,91 @@
     function handleECGData(event) {
       const value = event.target.value;
       
-      // Get the ECG data (example of unpacking 2 bytes for each lead)
+      // Get the ECG data for Lead I (example of unpacking 2 bytes for Lead I)
       const lead1 = value.getUint8(0) | (value.getUint8(1) << 8); // Lead I
-      const lead2 = value.getUint8(2) | (value.getUint8(3) << 8); // Lead II
-      const lead3 = value.getUint8(4) | (value.getUint8(5) << 8); // Lead III
 
-      // Add new data for each lead and remove the oldest if the array exceeds the max limit
+      // Add new data for Lead I and remove the oldest if the array exceeds the max limit
       if (lead1Data.length >= maxDataPoints) {
         lead1Data.shift();  // Remove the oldest data
-        lead2Data.shift();
-        lead3Data.shift();
       }
 
-      // Add the new data points
+      // Add the new data point for Lead I
       lead1Data.push(lead1);
-      lead2Data.push(lead2);
-      lead3Data.push(lead3);
 
       // Create a timestamp for labeling the X-axis
       const timestamp = new Date().toLocaleTimeString();
 
-      // Add the timestamp for all leads and remove the oldest if the label count exceeds the max limit
+      // Add the timestamp for Lead I and remove the oldest if the label count exceeds the max limit
       if (lead1Chart.data.labels.length >= maxDataPoints) {
         lead1Chart.data.labels.shift();  // Remove the oldest label
-        lead2Chart.data.labels.shift();
-        lead3Chart.data.labels.shift();
       }
 
-      // Add the new timestamp
+      // Add the new timestamp for Lead I
       lead1Chart.data.labels.push(timestamp);
-      lead2Chart.data.labels.push(timestamp);
-      lead3Chart.data.labels.push(timestamp);
 
-      // Update the charts without animation
+      // Update the chart without animation
       lead1Chart.update();
-      lead2Chart.update();
-      lead3Chart.update();
+
+      // If the ECG value exceeds 2500, show location and send alert
+      if (lead1 > 2500) {
+        fetchGeolocation();
+        sendAlertMessage(`Abnormal ECG value: ${lead1}`);
+      }
     }
 
-    // Function to periodically add data and simulate faster chart updates
-    function fastUpdate() {
-      setInterval(() => {
-        if (lead1Data.length > 0) {
-          lead1Chart.update();
-          lead2Chart.update();
-          lead3Chart.update();
+    // Function to fetch geolocation
+    function fetchGeolocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            updateMap(latitude, longitude);
+          },
+          (error) => {
+            console.error('Error fetching location:', error);
+          }
+        );
+      }
+    }
+
+    // Initialize the map with given coordinates
+    let map;
+    let marker;
+
+    function updateMap(lat, lng) {
+      if (!map) {
+        map = L.map('map').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        marker = L.marker([lat, lng]).addTo(map);
+      } else {
+        marker.setLatLng([lat, lng]);
+        map.setView([lat, lng], 15);
+      }
+    }
+
+    // Send alert message (this is a placeholder for the actual alert system)
+    async function sendAlertMessage(message) {
+      try {
+        const response = await fetch('https://s26khvv1-3000.inc1.devtunnels.ms/send-alert', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ message, recipients: ['+91 98005 40761'] }) // Replace with actual phone numbers
+        });
+        const result = await response.json();
+        if (result.success) {
+          console.log('Alert sent successfully');
+        } else {
+          console.error('Failed to send alert');
         }
-      }, updateInterval);  // Decrease this value to speed up the graph movement
+      } catch (error) {
+        console.error('Error sending alert:', error);
+      }
     }
-
-    // Start the fast update process
-    fastUpdate();
   </script>
 </body>
 </html>
