@@ -64,14 +64,14 @@
     document.getElementById('connectBtn').addEventListener('click', async () => {
       try {
         console.log('Requesting Bluetooth device...');
-        
+
         // Request Bluetooth device (Update this to match your ECG device UUID)
         bluetoothDevice = await navigator.bluetooth.requestDevice({
           filters: [{ services: ['0000180d-0000-1000-8000-00805f9b34fb'] }]  // Use ECG service UUID here
         });
 
         console.log('Connecting to device...');
-        
+
         // Connect to the selected device
         const server = await bluetoothDevice.gatt.connect();
 
@@ -96,7 +96,7 @@
     // Handle the ECG data when it changes
     function handleECGData(event) {
       const value = event.target.value;
-      
+
       // Get the ECG data for Lead I (example of unpacking 2 bytes for Lead I)
       const lead1 = value.getUint8(0) | (value.getUint8(1) << 8); // Lead I
 
@@ -137,6 +137,7 @@
             const longitude = position.coords.longitude;
             updateMap(latitude, longitude);
             sendAlertMessage(`Abnormal ECG value: ${lead1Value}`, latitude, longitude);
+            sendLocationToThingSpeak(latitude, longitude); // Send location to ThingSpeak
           },
           (error) => {
             console.error('Error fetching location:', error);
@@ -183,6 +184,38 @@
         console.error('Error sending alert:', error);
       }
     }
+
+    // Function to send location to ThingSpeak every 15 seconds
+    async function sendLocationToThingSpeak(latitude, longitude) {
+      try {
+        const apiKey = '9ZMRHD8I1MAC0794'; // Your ThingSpeak Write API Key
+        const channelId = '2786038'; // Your ThingSpeak Channel ID
+
+        const url = `https://api.thingspeak.com/update.json?api_key=${apiKey}&field1=${latitude}&field2=${longitude}`;
+
+        const response = await fetch(url, { method: 'GET' });
+
+        const result = await response.json();
+        if (result) {
+          console.log('Location data sent successfully to ThingSpeak');
+        } else {
+          console.error('Failed to send location data to ThingSpeak');
+        }
+      } catch (error) {
+        console.error('Error sending location data to ThingSpeak:', error);
+      }
+    }
+
+    // Trigger sending location to ThingSpeak every 15 seconds
+    setInterval(() => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+          sendLocationToThingSpeak(latitude, longitude);
+        });
+      }
+    }, 15000);
 
     // Function to convert data array to CSV format and download it
     function downloadCSV() {
