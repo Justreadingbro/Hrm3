@@ -167,13 +167,13 @@
     async function sendAlertMessage(message, latitude, longitude) {
       try {
         // Use your Twilio credentials
-        const accountSid = 'your_account_sid';
-        const authToken = 'your_auth_token';
-        const twilioNumber = 'your_twilio_number';
+        const accountSid = 'AC6386186f8e5c54fe46a9b9e85d4b742a';
+        const authToken = 'ef66b1dc204d7e68b5909ddd11317211';
+        const twilioNumber = '+1 814 447 8014';
         
         const twilioClient = require('twilio')(accountSid, authToken);
         
-        const recipients = ['+1234567890', '+91 98005 40761']; // List of recipient phone numbers
+        const recipients = ['+91 70029 29308', '+91 98005 40761']; // List of recipient phone numbers
         
         recipients.forEach(async (recipient) => {
           await twilioClient.messages.create({
